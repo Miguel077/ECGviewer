@@ -130,7 +130,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    const CACHE_NAME = 'ecg-frequency-viewer-v8';
+                    const CACHE_NAME = 'ecg-frequency-viewer-v9';
                     self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(['./', 'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js']))); });
                     self.addEventListener('fetch', e => { e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))); });
                 `;
@@ -152,54 +152,35 @@
             box.style.display = 'block';
         }
 
-        // Extrem robuster, schreibweisen-unabhängiger Parser
+        // HIER IST WIEDER DER ALTE, ORIGINALE PARSER
         function parseMultiBlockJSON(rawText) {
             if (!rawText) throw new Error("Datei ist leer.");
             let combinedDataPoints = [];
-            
-            // Findet paarweise alle Vorkommen von großen Zahlen (Timestamp) und evtl. negativen Zahlen (Spannung)
-            // Sucht flexibel nach Mustern wie: "timeStamp": 12345, "voltage": 67
-            const regex = /"timeS[^"]*"\s*:\s*(\d+)\s*,\s*"volt[^"]*"\s*:\s*(-?\d+)/gi;
+            const regex = /\{\s*"timeStamp"\s*:\s*(\d+)\s*,\s*"voltage"\s*:\s*(-?\d+)\s*\}/g;
             let match;
-            
             while ((match = regex.exec(rawText)) !== null) {
                 combinedDataPoints.push({
                     timeStamp: parseInt(match[1], 10),
                     voltage: parseInt(match[2], 10)
                 });
             }
-            
-            // Zweiter Versuch, falls die Keys komplett anders heißen (sucht einfach nach reinen Zahlenstrukturen innerhalb geschweifter Klammern)
             if (combinedDataPoints.length === 0) {
-                const backupRegex = /\{\s*"[^"]*"\s*:\s*(\d+)\s*,\s*"[^"]*"\s*:\s*(-?\d+)\s*\}/g;
-                while ((match = backupRegex.exec(rawText)) !== null) {
-                    combinedDataPoints.push({
-                        timeStamp: parseInt(match[1], 10),
-                        voltage: parseInt(match[2], 10)
-                    });
-                }
+                throw new Error("Keine lesbaren EKG-Objekte gefunden.");
             }
-            
-            if (combinedDataPoints.length === 0) {
-                throw new Error("Keine EKG-Zahlenpaare gefunden. Bitte Dateistruktur prüfen.");
-            }
-            
-            // Sortieren nach Zeitstempel, falls durch Multi-Blöcke etwas durcheinandergeraten ist
-            combinedDataPoints.sort((a, b) => a.timeStamp - b.timeStamp);
             return { data: combinedDataPoints };
         }
 
         document.getElementById('file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-            showStatus('<div class="spinner"></div>Analysiere Datenstrukturen...', 'loading');
+            showStatus('<div class="spinner"></div>Extrahiere EKG-Messpunkte...', 'loading');
             const reader = new FileReader();
             reader.onload = function(evt) {
                 setTimeout(() => {
                     try {
                         const completeData = parseMultiBlockJSON(evt.target.result);
                         renderECG(completeData);
-                    } catch (err) { showStatus('<b>Fehler:</b> ' + err.message, 'error'); }
+                    } catch (err) { showStatus('<b>Fehler beim Parsen:</b> ' + err.message, 'error'); }
                 }, 50);
             };
             reader.readAsText(file);
@@ -219,7 +200,7 @@
             if (!pointInGrid) return;
             const clickedX = pointInGrid[0];
             const axisRange = myChart.getOption().xAxis[0].max - myChart.getOption().xAxis[0].min;
-            const threshold = axisRange * 0.06; // Großzügige Touch-Zone fürs Smartphone
+            const threshold = axisRange * 0.05; 
 
             if (Math.abs(clickedX - cursorA_val) < threshold && Math.abs(clickedX - cursorA_val) < Math.abs(clickedX - cursorB_val)) {
                 isDragging = 'A';
@@ -241,9 +222,12 @@
             document.getElementById('chart-card').style.display = 'block';
             exitMeasureMode();
             const firstTs = jsonData.data[0].timeStamp;
+            const len = jsonData.data.length;
+            const rawPoints = new Array(len);
             
-            // Zeitachse in Sekunden umrechnen (Nanosekunden zu Sekunden)
-            const rawPoints = jsonData.data.map(d => [(d.timeStamp - firstTs) / 1000000000, d.voltage]);
+            for (let i = 0; i < len; i++) {
+                rawPoints[i] = [(jsonData.data[i].timeStamp - firstTs) / 1000000000, jsonData.data[i].voltage];
+            }
 
             if (!myChart) {
                 const domContainer = document.getElementById('chart-container');
