@@ -51,8 +51,8 @@
         }
         .status-loading { background-color: #e6f7ff; border-left: 4px solid #1890ff; color: #0050b3; }
         .status-success { background-color: #f6ffed; border-left: 4px solid #52c41a; color: #237804; }
-        .status-error { background-color: #fff1f0; border-left: 4px solid #ff4d4f; color: #a8071a; }
 
+        /* Kompakte Einzeilen-Leiste */
         .bottom-bar {
             display: flex; align-items: center; justify-content: space-between;
             background: #f0f4f8; padding: 10px 15px; border-radius: 8px;
@@ -130,7 +130,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    const CACHE_NAME = 'ecg-frequency-viewer-v9';
+                    const CACHE_NAME = 'ecg-frequency-viewer-v1';
                     self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(['./', 'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js']))); });
                     self.addEventListener('fetch', e => { e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))); });
                 `;
@@ -175,54 +175,23 @@
         document.getElementById('file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-            showStatus('<div class="spinner"></div>Extrahiere EKG-Messpunkte...', 'loading');
+            showStatus('<div class="spinner"></div>Verbinde EKG-Segmente...', 'loading');
             const reader = new FileReader();
             reader.onload = function(evt) {
                 setTimeout(() => {
                     try {
                         const completeData = parseMultiBlockJSON(evt.target.result);
                         renderECG(completeData);
-                    } catch (err) { showStatus('<b>Fehler beim Parsen:</b> ' + err.message, 'error'); }
+                    } catch (err) { showStatus('<b>Fehler:</b> ' + err.message, 'error'); }
                 }, 50);
             };
             reader.readAsText(file);
         });
 
-        function getEventPixel(e, domNode) {
-            const rect = domNode.getBoundingClientRect();
-            if (e.targetTouches && e.targetTouches.length > 0) {
-                return [e.targetTouches[0].clientX - rect.left, e.targetTouches[0].clientY - rect.top];
-            }
-            return [e.offsetX ?? 0, e.offsetY ?? 0];
-        }
-
-        function handleStart(x, y) {
-            if (!isMeasureMode || !myChart) return;
-            const pointInGrid = myChart.convertFromPixel('grid', [x, y]);
-            if (!pointInGrid) return;
-            const clickedX = pointInGrid[0];
-            const axisRange = myChart.getOption().xAxis[0].max - myChart.getOption().xAxis[0].min;
-            const threshold = axisRange * 0.05; 
-
-            if (Math.abs(clickedX - cursorA_val) < threshold && Math.abs(clickedX - cursorA_val) < Math.abs(clickedX - cursorB_val)) {
-                isDragging = 'A';
-            } else if (Math.abs(clickedX - cursorB_val) < threshold) {
-                isDragging = 'B';
-            }
-        }
-
-        function handleMove(x, y) {
-            if (!isDragging || !isMeasureMode || !myChart) return;
-            const pointInGrid = myChart.convertFromPixel('grid', [x, y]);
-            if (!pointInGrid) return;
-            if (isDragging === 'A') cursorA_val = pointInGrid[0];
-            if (isDragging === 'B') cursorB_val = pointInGrid[0];
-            updateChartLines();
-        }
-
         function renderECG(jsonData) {
             document.getElementById('chart-card').style.display = 'block';
             exitMeasureMode();
+
             const firstTs = jsonData.data[0].timeStamp;
             const len = jsonData.data.length;
             const rawPoints = new Array(len);
@@ -232,31 +201,44 @@
             }
 
             if (!myChart) {
-                const domContainer = document.getElementById('chart-container');
-                myChart = echarts.init(domContainer);
+                myChart = echarts.init(document.getElementById('chart-container'));
                 
-                myChart.getZr().on('mousedown', p => handleStart(p.offsetX, p.offsetY));
-                myChart.getZr().on('mousemove', p => handleMove(p.offsetX, p.offsetY));
-                myChart.getZr().on('mouseup', () => isDragging = null);
-                
-                domContainer.addEventListener('touchstart', e => {
-                    if (isMeasureMode) e.preventDefault();
-                    const pos = getEventPixel(e, domContainer);
-                    handleStart(pos[0], pos[1]);
-                }, { passive: false });
+                myChart.getZr().on('mousedown', function (params) {
+                    if (!isMeasureMode) return;
+                    const pointInPixel = [params.offsetX, params.offsetY];
+                    if (myChart.containPixel('grid', pointInPixel)) {
+                        const pointInGrid = myChart.convertFromPixel('grid', pointInPixel);
+                        const clickedX = pointInGrid[0];
 
-                domContainer.addEventListener('touchmove', e => {
-                    if (isMeasureMode && isDragging) e.preventDefault();
-                    const pos = getEventPixel(e, domContainer);
-                    handleMove(pos[0], pos[1]);
-                }, { passive: false });
+                        const axisRange = myChart.getOption().xAxis[0].max - myChart.getOption().xAxis[0].min;
+                        const threshold = axisRange ? axisRange * 0.025 : 0.5; 
 
-                domContainer.addEventListener('touchend', () => { isDragging = null; });
+                        if (Math.abs(clickedX - cursorA_val) < threshold && Math.abs(clickedX - cursorA_val) < Math.abs(clickedX - cursorB_val)) {
+                            isDragging = 'A';
+                        } else if (Math.abs(clickedX - cursorB_val) < threshold) {
+                            isDragging = 'B';
+                        }
+                    }
+                });
+
+                myChart.getZr().on('mousemove', function (params) {
+                    if (!isDragging || !isMeasureMode) return;
+                    const pointInPixel = [params.offsetX, params.offsetY];
+                    if (myChart.containPixel('grid', pointInPixel)) {
+                        const pointInGrid = myChart.convertFromPixel('grid', pointInPixel);
+                        if (isDragging === 'A') cursorA_val = pointInGrid[0];
+                        if (isDragging === 'B') cursorB_val = pointInGrid[0];
+                        updateChartLines();
+                    }
+                });
+
+                myChart.getZr().on('mouseup', function () { isDragging = null; });
+                myChart.getZr().on('globalout', function () { isDragging = null; });
             }
 
-            myChart.setOption({
-                animation: false,
-                title: { text: 'EKG Signalverlauf', left: 'center' },
+            const option = {
+                animation: false, 
+                title: { text: 'EKG Signalverlauf', left: 'center', textStyle: { fontSize: 14 } },
                 tooltip: {
                     trigger: 'axis',
                     formatter: p => `<b>Zeit:</b> ${p[0].value[0].toFixed(3)} s<br/><b>Spannung:</b> ${p[0].value[1]} µV`
@@ -265,59 +247,40 @@
                 xAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#eee' } } },
                 yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#e8e8e8' } } },
                 dataZoom: [
-                    { type: 'inside', start: 0, end: 3 }, 
-                    { type: 'slider', start: 0, end: 3 }
+                    { type: 'inside', start: 0, end: 3, disabled: false }, 
+                    { type: 'slider', start: 0, end: 3, disabled: false }
                 ],
-                series: [{ 
+                series: [{
                     name: 'Spannung',
-                    type: 'line', 
-                    data: rawPoints, 
-                    showSymbol: false, 
+                    type: 'line',
+                    data: rawPoints,
+                    showSymbol: false,
                     sampling: 'lttb', 
-                    lineStyle: { color: '#ff4d4f', width: 1.2 },
+                    lineStyle: { width: 1.2, color: '#ff4d4f' },
                     markLine: { symbol: ['none', 'none'], silent: true, data: [] }
                 }]
-            }, true);
-            showStatus('Datei erfolgreich geladen. Zoome an ein Signal heran und klicke "Messen starten".', 'success');
+            };
+
+            myChart.setOption(option, true);
+            showStatus('Datei geladen. Zoome an ein Signal heran und klicke "Messen starten".', 'success');
             setTimeout(() => { myChart.resize(); }, 100);
         }
 
         function enterMeasureMode() {
             if (!myChart) return;
             isMeasureMode = true;
+
             document.getElementById('btn-start').style.display = 'none';
             document.getElementById('btn-stop').style.display = 'inline-block';
             document.getElementById('measurement-result').style.visibility = 'visible';
 
             const axis = myChart.getModel().getComponent('xAxis', 0).axis;
-            const range = axis.scale.getExtent();
-            cursorA_val = range[0] + (range[1] - range[0]) * 0.33;
-            cursorB_val = range[0] + (range[1] - range[0]) * 0.66;
-            updateChartLines();
-        }
+            const minX = axis.scale.getExtent()[0];
+            const maxX = axis.scale.getExtent()[1];
+            const width = maxX - minX;
 
-        function exitMeasureMode() {
-            isMeasureMode = false;
-            isDragging = null;
-            document.getElementById('btn-stop').style.display = 'none';
-            document.getElementById('btn-start').style.display = 'inline-block';
-            document.getElementById('measurement-result').style.visibility = 'hidden';
-            if (myChart) {
-                myChart.setOption({
-                    dataZoom: [{ type: 'inside', disabled: false }, { type: 'slider', disabled: false }],
-                    series: [{ markLine: { data: [] } }]
-                });
-            }
-        }
-
-        function updateChartLines() {
-            if (!myChart || !isMeasureMode) return;
-            const diffSeconds = Math.abs(cursorA_val - cursorB_val);
-            const diffMs = Math.round(diffSeconds * 1000);
-            const bpmText = diffSeconds > 0 ? `${Math.round(60 / diffSeconds)} BPM` : '-- BPM';
-
-            document.getElementById('res-time').textContent = `Δt: ${diffMs} ms`;
-            document.getElementById('res-freq').textContent = `| Freq: ${bpmText}`;
+            cursorA_val = minX + (width * 0.33);
+            cursorB_val = minX + (width * 0.66);
 
             myChart.setOption({
                 dataZoom: [{ type: 'inside', disabled: true }, { type: 'slider', disabled: true }],
@@ -330,18 +293,70 @@
                     }
                 }]
             });
+            updateLabels();
+        }
+
+        function exitMeasureMode() {
+            isMeasureMode = false;
+            isDragging = null;
+
+            document.getElementById('btn-stop').style.display = 'none';
+            document.getElementById('btn-start').style.display = 'inline-block';
+            document.getElementById('measurement-result').style.visibility = 'hidden';
+
+            if (myChart) {
+                myChart.setOption({
+                    dataZoom: [{ type: 'inside', disabled: false }, { type: 'slider', disabled: false }],
+                    series: [{ markLine: { data: [] } }]
+                });
+            }
+        }
+
+        // Berechnet Delta Zeit in ms sowie Frequenz in BPM
+        function updateLabels() {
+            const diffSeconds = Math.abs(cursorA_val - cursorB_val);
+            const diffMs = Math.round(diffSeconds * 1000);
+            
+            // Frequenz berechnen: 60 / Zeit-in-Sekunden
+            let bpmText = "-- BPM";
+            if (diffSeconds > 0) {
+                const bpm = 60 / diffSeconds;
+                bpmText = `${Math.round(bpm)} BPM`;
+            }
+
+            document.getElementById('res-time').textContent = `Δt: ${diffMs} ms`;
+            document.getElementById('res-freq').textContent = `| Freq: ${bpmText}`;
+        }
+
+        function updateChartLines() {
+            if (!myChart || !isMeasureMode) return;
+            updateLabels();
+            myChart.setOption({
+                series: [{
+                    markLine: {
+                        data: [
+                            { xAxis: cursorA_val, lineStyle: { color: '#0050b3', type: 'solid', width: 2.5 }, label: { formatter: 'A' } },
+                            { xAxis: cursorB_val, lineStyle: { color: '#237804', type: 'solid', width: 2.5 }, label: { formatter: 'B' } }
+                        ]
+                    }
+                }]
+            });
         }
 
         function toggleFullscreen() {
             const card = document.getElementById('chart-card');
+            const btn = document.getElementById('btn-toggle-fs');
             if (!document.fullscreenElement) {
-                card.requestFullscreen().catch(err => alert(err.message));
+                card.requestFullscreen().then(() => {
+                    btn.textContent = "Vollbild beenden";
+                    setTimeout(() => { myChart.resize(); }, 150);
+                }).catch(err => alert(err.message));
             } else { document.exitFullscreen(); }
         }
 
         document.addEventListener('fullscreenchange', () => {
             const btn = document.getElementById('btn-toggle-fs');
-            btn.textContent = document.fullscreenElement ? "Vollbild beenden" : "Vollbild";
+            if (!document.fullscreenElement) btn.textContent = "Vollbild";
             if (myChart) setTimeout(() => { myChart.resize(); }, 150);
         });
 
