@@ -152,21 +152,23 @@
             box.style.display = 'block';
         }
 
-        // HIER IST WIEDER DER ALTE, ORIGINALE PARSER
         function parseMultiBlockJSON(rawText) {
-            if (!rawText) throw new Error("Datei ist leer.");
+            rawText = rawText.trim();
+            const blockStrings = rawText.split(/\]\}\s*(?=\{)/);
             let combinedDataPoints = [];
-            const regex = /\{\s*"timeStamp"\s*:\s*(\d+)\s*,\s*"voltage"\s*:\s*(-?\d+)\s*\}/g;
-            let match;
-            while ((match = regex.exec(rawText)) !== null) {
-                combinedDataPoints.push({
-                    timeStamp: parseInt(match[1], 10),
-                    voltage: parseInt(match[2], 10)
-                });
+            for (let i = 0; i < blockStrings.length; i++) {
+                let block = blockStrings[i].trim();
+                if (!block) continue;
+                if (!block.endsWith('}')) {
+                    const lastClosingBrace = block.lastIndexOf('}');
+                    block = (lastClosingBrace !== -1) ? block.substring(0, lastClosingBrace + 1) + ']}': block + ']}';
+                } else if (!block.endsWith(']}')) { block += ']}'; }
+                try {
+                    const parsedBlock = JSON.parse(block);
+                    if (parsedBlock.data && Array.isArray(parsedBlock.data)) combinedDataPoints = combinedDataPoints.concat(parsedBlock.data);
+                } catch (e) { console.warn(e); }
             }
-            if (combinedDataPoints.length === 0) {
-                throw new Error("Keine lesbaren EKG-Objekte gefunden.");
-            }
+            if (combinedDataPoints.length === 0) throw new Error("Keine validen Punkte gefunden.");
             return { data: combinedDataPoints };
         }
 
