@@ -127,269 +127,217 @@
     </div>
 
     <script>
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        const swCode = `
-            const CACHE_NAME = 'ecg-frequency-viewer-v5';
-            self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(['./', 'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js']))); });
-            self.addEventListener('fetch', e => { e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))); });
-        `;
-        const blob = new Blob([swCode], {type: 'application/javascript'});
-        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log(err));
-    });
-}
-
-let myChart = null;
-let cursorA_val = 0.0;
-let cursorB_val = 0.0;
-let isDragging = null;
-let isMeasureMode = false;
-
-function showStatus(message, type) {
-    const box = document.getElementById('status-message');
-    box.className = 'status-box status-' + type;
-    box.innerHTML = message;
-    box.style.display = 'block';
-}
-
-function parseMultiBlockJSON(rawText) {
-    if (!rawText) throw new Error("Datei ist leer.");
-    let combinedDataPoints = [];
-    const regex = /\{\s*"timeStamp"\s*:\s*(\d+)\s*,\s*"voltage"\s*:\s*(-?\d+)\s*\}/g;
-    let match;
-    while ((match = regex.exec(rawText)) !== null) {
-        combinedDataPoints.push({
-            timeStamp: parseInt(match[1], 10),
-            voltage: parseInt(match[2], 10)
-        });
-    }
-    if (combinedDataPoints.length === 0) {
-        throw new Error("Keine lesbaren EKG-Objekte gefunden.");
-    }
-    return { data: combinedDataPoints };
-}
-
-document.getElementById('file-input').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    showStatus('<div class="spinner"></div>Extrahiere EKG-Messpunkte...', 'loading');
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-        setTimeout(() => {
-            try {
-                const completeData = parseMultiBlockJSON(evt.target.result);
-                renderECG(completeData);
-            } catch (err) { 
-                showStatus('<b>Fehler beim Parsen:</b> ' + err.message, 'error'); 
-            }
-        }, 50);
-    };
-    reader.readAsText(file);
-});
-
-// Hilfsfunktion, um Pixel-Koordinaten sowohl für Maus als auch für Touch verlässlich zu holen
-function getEventPixel(e, domNode) {
-    const rect = domNode.getBoundingClientRect();
-    if (e.targetTouches && e.targetTouches.length > 0) {
-        return [e.targetTouches[0].clientX - rect.left, e.targetTouches[0].clientY - rect.top];
-    } else if (e.changedTouches && e.changedTouches.length > 0) {
-        return [e.changedTouches[0].clientX - rect.left, e.changedTouches[0].clientY - rect.top];
-    }
-    return [e.offsetX ?? e.layerX, e.offsetY ?? e.layerY];
-}
-
-function handleStart(pos[0], pos[1]) {
-    if (!isMeasureMode || !myChart) return;
-    const pointInPixel = [pos[0], pos[1]];
-    if (myChart.containPixel('grid', pointInPixel)) {
-        const pointInGrid = myChart.convertFromPixel('grid', pointInPixel);
-        const clickedX = pointInGrid[0];
-
-        const axisRange = myChart.getOption().xAxis[0].max - myChart.getOption().xAxis[0].min;
-        const threshold = axisRange ? axisRange * 0.04 : 0.5; // Größerer Touch-Radius fürs Smartphone
-
-        if (Math.abs(clickedX - cursorA_val) < threshold && Math.abs(clickedX - cursorA_val) < Math.abs(clickedX - cursorB_val)) {
-            isDragging = 'A';
-        } else if (Math.abs(clickedX - cursorB_val) < threshold) {
-            isDragging = 'B';
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swCode = `
+                    const CACHE_NAME = 'ecg-frequency-viewer-v7';
+                    self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(['./', 'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js']))); });
+                    self.addEventListener('fetch', e => { e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))); });
+                `;
+                const blob = new Blob([swCode], {type: 'application/javascript'});
+                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log(err));
+            });
         }
-    }
-}
 
-function handleMove(pos[0], pos[1]) {
-    if (!isDragging || !isMeasureMode || !myChart) return;
-    const pointInPixel = [pos[0], pos[1]];
-    if (myChart.containPixel('grid', pointInPixel)) {
-        const pointInGrid = myChart.convertFromPixel('grid', pointInPixel);
-        if (isDragging === 'A') cursorA_val = pointInGrid[0];
-        if (isDragging === 'B') cursorB_val = pointInGrid[0];
-        updateChartLines();
-    }
-}
+        let myChart = null;
+        let cursorA_val = 0.0;
+        let cursorB_val = 0.0;
+        let isDragging = null;
+        let isMeasureMode = false;
 
-function renderECG(jsonData) {
-    document.getElementById('chart-card').style.display = 'block';
-    exitMeasureMode();
+        function showStatus(message, type) {
+            const box = document.getElementById('status-message');
+            box.className = 'status-box status-' + type;
+            box.innerHTML = message;
+            box.style.display = 'block';
+        }
 
-    const firstTs = jsonData.data[0].timeStamp;
-    const len = jsonData.data.length;
-    const rawPoints = new Array(len);
-    
-    for (let i = 0; i < len; i++) {
-        rawPoints[i] = [(jsonData.data[i].timeStamp - firstTs) / 1000000000, jsonData.data[i].voltage];
-    }
-
-    if (!myChart) {
-        const domContainer = document.getElementById('chart-container');
-        myChart = echarts.init(domContainer);
-        const zr = myChart.getZr();
-
-        // MAUS EVENTS
-        zr.on('mousedown', function (params) { handleStart(params.offsetX, params.offsetY); });
-        zr.on('mousemove', function (params) { handleMove(params.offsetX, params.offsetY); });
-        zr.on('mouseup', function () { isDragging = null; });
-        zr.on('globalout', function () { isDragging = null; });
-
-        // SMARTPHONE TOUCH EVENTS (Verhindert auch das Scrollen der Seite beim Ziehen)
-        domContainer.addEventListener('touchstart', function(e) {
-            if(isMeasureMode) e.preventDefault();
-            const pos = getEventPixel(e, domContainer);
-            handleStart(pos[0], pos[1]);
-        }, { passive: false });
-
-        domContainer.addEventListener('touchmove', function(e) {
-            if(isMeasureMode && isDragging) e.preventDefault();
-            const pos = getEventPixel(e, domContainer);
-            handleMove(pos[0], pos[1]);
-        }, { passive: false });
-
-        domContainer.addEventListener('touchend', function() { isDragging = null; });
-        domContainer.addEventListener('touchcancel', function() { isDragging = null; });
-    }
-
-    const option = {
-        animation: false, 
-        title: { text: 'EKG Signalverlauf', left: 'center', textStyle: { fontSize: 14 } },
-        tooltip: {
-            trigger: 'axis',
-            formatter: p => `<b>Zeit:</b> ${p[0].value[0].toFixed(3)} s<br/><b>Spannung:</b> ${p[0].value[1]} µV`
-        },
-        grid: { left: '4%', right: '4%', bottom: '60px', top: '40px', containLabel: true },
-        xAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#eee' } } },
-        yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#e8e8e8' } } },
-        dataZoom: [
-            { type: 'inside', start: 0, end: 3, disabled: false }, 
-            { type: 'slider', start: 0, end: 3, disabled: false }
-        ],
-        series: [{
-            name: 'Spannung',
-            type: 'line',
-            data: rawPoints,
-            showSymbol: false,
-            sampling: 'lttb', 
-            lineStyle: { width: 1.2, color: '#ff4d4f' },
-            markLine: { symbol: ['none', 'none'], silent: true, data: [] }
-        }]
-    };
-
-    myChart.setOption(option, true);
-    showStatus('Datei erfolgreich geladen. Modus einsatzbereit.', 'success');
-    setTimeout(() => { myChart.resize(); }, 100);
-}
-
-function enterMeasureMode() {
-    if (!myChart) return;
-    isMeasureMode = true;
-
-    document.getElementById('btn-start').style.display = 'none';
-    document.getElementById('btn-stop').style.display = 'inline-block';
-    document.getElementById('measurement-result').style.visibility = 'visible';
-
-    const axis = myChart.getModel().getComponent('xAxis', 0).axis;
-    const minX = axis.scale.getExtent()[0];
-    const maxX = axis.scale.getExtent()[1];
-    const width = maxX - minX;
-
-    cursorA_val = minX + (width * 0.33);
-    cursorB_val = minX + (width * 0.66);
-
-    myChart.setOption({
-        dataZoom: [{ type: 'inside', disabled: true }, { type: 'slider', disabled: true }],
-        series: [{
-            markLine: {
-                data: [
-                    { xAxis: cursorA_val, lineStyle: { color: '#0050b3', type: 'solid', width: 2.5 }, label: { formatter: 'A', position: 'end' } },
-                    { xAxis: cursorB_val, lineStyle: { color: '#237804', type: 'solid', width: 2.5 }, label: { formatter: 'B', position: 'end' } }
-                ]
+        function parseMultiBlockJSON(rawText) {
+            if (!rawText) throw new Error("Datei ist leer.");
+            let combinedDataPoints = [];
+            const regex = /\{\s*"timeStamp"\s*:\s*(\d+)\s*,\s*"voltage"\s*:\s*(-?\d+)\s*\}/g;
+            let match;
+            while ((match = regex.exec(rawText)) !== null) {
+                combinedDataPoints.push({
+                    timeStamp: parseInt(match[1], 10),
+                    voltage: parseInt(match[2], 10)
+                });
             }
-        }]
-    });
-    updateLabels();
-}
+            if (combinedDataPoints.length === 0) throw new Error("Keine lesbaren EKG-Objekte gefunden.");
+            return { data: combinedDataPoints };
+        }
 
-function exitMeasureMode() {
-    isMeasureMode = false;
-    isDragging = null;
-
-    document.getElementById('btn-stop').style.display = 'none';
-    document.getElementById('btn-start').style.display = 'inline-block';
-    document.getElementById('measurement-result').style.visibility = 'hidden';
-
-    if (myChart) {
-        myChart.setOption({
-            dataZoom: [{ type: 'inside', disabled: false }, { type: 'slider', disabled: false }],
-            series: [{ markLine: { data: [] } }]
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            showStatus('<div class="spinner"></div>Extrahiere EKG-Messpunkte...', 'loading');
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                setTimeout(() => {
+                    try {
+                        const completeData = parseMultiBlockJSON(evt.target.result);
+                        renderECG(completeData);
+                    } catch (err) { showStatus('<b>Fehler:</b> ' + err.message, 'error'); }
+                }, 50);
+            };
+            reader.readAsText(file);
         });
-    }
-}
 
-function updateLabels() {
-    const diffSeconds = Math.abs(cursorA_val - cursorB_val);
-    const diffMs = Math.round(diffSeconds * 1000);
-    let bpmText = "-- BPM";
-    if (diffSeconds > 0) {
-        const bpm = 60 / diffSeconds;
-        bpmText = `${Math.round(bpm)} BPM`;
-    }
-    document.getElementById('res-time').textContent = `Δt: ${diffMs} ms`;
-    document.getElementById('res-freq').textContent = `| Freq: ${bpmText}`;
-}
-
-function updateChartLines() {
-    if (!myChart || !isMeasureMode) return;
-    updateLabels();
-    myChart.setOption({
-        series: [{
-            markLine: {
-                data: [
-                    { xAxis: cursorA_val, lineStyle: { color: '#0050b3', type: 'solid', width: 2.5 }, label: { formatter: 'A' } },
-                    { xAxis: cursorB_val, lineStyle: { color: '#237804', type: 'solid', width: 2.5 }, label: { formatter: 'B' } }
-                ]
+        function getEventPixel(e, domNode) {
+            const rect = domNode.getBoundingClientRect();
+            if (e.targetTouches && e.targetTouches.length > 0) {
+                return [e.targetTouches[0].clientX - rect.left, e.targetTouches[0].clientY - rect.top];
             }
-        }]
-    });
-}
+            return [e.offsetX ?? 0, e.offsetY ?? 0];
+        }
 
-function toggleFullscreen() {
-    const card = document.getElementById('chart-card');
-    const btn = document.getElementById('btn-toggle-fs');
-    if (!document.fullscreenElement) {
-        card.requestFullscreen().then(() => {
-            btn.textContent = "Vollbild beenden";
-            setTimeout(() => { myChart.resize(); }, 150);
-        }).catch(err => alert(err.message));
-    } else { document.exitFullscreen(); }
-}
+        function handleStart(x, y) {
+            if (!isMeasureMode || !myChart) return;
+            const pointInGrid = myChart.convertFromPixel('grid', [x, y]);
+            if (!pointInGrid) return;
+            const clickedX = pointInGrid[0];
+            const axisRange = myChart.getOption().xAxis[0].max - myChart.getOption().xAxis[0].min;
+            const threshold = axisRange * 0.05; // Erhöhter Touch-Toleranzbereich fürs Smartphone
 
-document.addEventListener('fullscreenchange', () => {
-    const btn = document.getElementById('btn-toggle-fs');
-    if (!document.fullscreenElement) btn.textContent = "Vollbild";
-    if (myChart) setTimeout(() => { myChart.resize(); }, 150);
-});
+            if (Math.abs(clickedX - cursorA_val) < threshold && Math.abs(clickedX - cursorA_val) < Math.abs(clickedX - cursorB_val)) {
+                isDragging = 'A';
+            } else if (Math.abs(clickedX - cursorB_val) < threshold) {
+                isDragging = 'B';
+            }
+        }
 
-window.addEventListener('resize', () => { if (myChart) myChart.resize(); });
+        function handleMove(x, y) {
+            if (!isDragging || !isMeasureMode || !myChart) return;
+            const pointInGrid = myChart.convertFromPixel('grid', [x, y]);
+            if (!pointInGrid) return;
+            if (isDragging === 'A') cursorA_val = pointInGrid[0];
+            if (isDragging === 'B') cursorB_val = pointInGrid[0];
+            updateChartLines();
+        }
+
+        function renderECG(jsonData) {
+            document.getElementById('chart-card').style.display = 'block';
+            exitMeasureMode();
+            const firstTs = jsonData.data[0].timeStamp;
+            const rawPoints = jsonData.data.map(d => [(d.timeStamp - firstTs) / 1000000000, d.voltage]);
+
+            if (!myChart) {
+                const domContainer = document.getElementById('chart-container');
+                myChart = echarts.init(domContainer);
+                
+                // Maus-Events
+                myChart.getZr().on('mousedown', p => handleStart(p.offsetX, p.offsetY));
+                myChart.getZr().on('mousemove', p => handleMove(p.offsetX, p.offsetY));
+                myChart.getZr().on('mouseup', () => isDragging = null);
+                
+                // Touch-Events fürs Smartphone
+                domContainer.addEventListener('touchstart', e => {
+                    if (isMeasureMode) e.preventDefault();
+                    const pos = getEventPixel(e, domContainer);
+                    handleStart(pos[0], pos[1]);
+                }, { passive: false });
+
+                domContainer.addEventListener('touchmove', e => {
+                    if (isMeasureMode && isDragging) e.preventDefault();
+                    const pos = getEventPixel(e, domContainer);
+                    handleMove(pos[0], pos[1]);
+                }, { passive: false });
+
+                domContainer.addEventListener('touchend', () => { isDragging = null; });
+            }
+
+            myChart.setOption({
+                animation: false,
+                title: { text: 'EKG Signalverlauf', left: 'center' },
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: p => `<b>Zeit:</b> ${p[0].value[0].toFixed(3)} s<br/><b>Spannung:</b> ${p[0].value[1]} µV`
+                },
+                grid: { left: '4%', right: '4%', bottom: '60px', top: '40px', containLabel: true },
+                xAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#eee' } } },
+                yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#e8e8e8' } } },
+                dataZoom: [
+                    { type: 'inside', start: 0, end: 3 }, 
+                    { type: 'slider', start: 0, end: 3 }
+                ],
+                series: [{ 
+                    name: 'Spannung',
+                    type: 'line', 
+                    data: rawPoints, 
+                    showSymbol: false, 
+                    sampling: 'lttb', 
+                    lineStyle: { color: '#ff4d4f', width: 1.2 },
+                    markLine: { symbol: ['none', 'none'], silent: true, data: [] }
+                }]
+            }, true);
+            showStatus('Datei erfolgreich geladen. Zoome an ein Signal heran und klicke "Messen starten".', 'success');
+            setTimeout(() => { myChart.resize(); }, 100);
+        }
+
+        function enterMeasureMode() {
+            if (!myChart) return;
+            isMeasureMode = true;
+            document.getElementById('btn-start').style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'inline-block';
+            document.getElementById('measurement-result').style.visibility = 'visible';
+
+            const axis = myChart.getModel().getComponent('xAxis', 0).axis;
+            const range = axis.scale.getExtent();
+            cursorA_val = range[0] + (range[1] - range[0]) * 0.33;
+            cursorB_val = range[0] + (range[1] - range[0]) * 0.66;
+            updateChartLines();
+        }
+
+        function exitMeasureMode() {
+            isMeasureMode = false;
+            isDragging = null;
+            document.getElementById('btn-stop').style.display = 'none';
+            document.getElementById('btn-start').style.display = 'inline-block';
+            document.getElementById('measurement-result').style.visibility = 'hidden';
+            if (myChart) {
+                myChart.setOption({
+                    dataZoom: [{ type: 'inside', disabled: false }, { type: 'slider', disabled: false }],
+                    series: [{ markLine: { data: [] } }]
+                });
+            }
+        }
+
+        function updateChartLines() {
+            if (!myChart || !isMeasureMode) return;
+            const diffSeconds = Math.abs(cursorA_val - cursorB_val);
+            const diffMs = Math.round(diffSeconds * 1000);
+            const bpmText = diffSeconds > 0 ? `${Math.round(60 / diffSeconds)} BPM` : '-- BPM';
+
+            document.getElementById('res-time').textContent = `Δt: ${diffMs} ms`;
+            document.getElementById('res-freq').textContent = `| Freq: ${bpmText}`;
+
+            myChart.setOption({
+                dataZoom: [{ type: 'inside', disabled: true }, { type: 'slider', disabled: true }],
+                series: [{
+                    markLine: {
+                        data: [
+                            { xAxis: cursorA_val, lineStyle: { color: '#0050b3', type: 'solid', width: 2.5 }, label: { formatter: 'A', position: 'end' } },
+                            { xAxis: cursorB_val, lineStyle: { color: '#237804', type: 'solid', width: 2.5 }, label: { formatter: 'B', position: 'end' } }
+                        ]
+                    }
+                }]
+            });
+        }
+
+        function toggleFullscreen() {
+            const card = document.getElementById('chart-card');
+            if (!document.fullscreenElement) {
+                card.requestFullscreen().catch(err => alert(err.message));
+            } else { document.exitFullscreen(); }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('btn-toggle-fs');
+            btn.textContent = document.fullscreenElement ? "Vollbild beenden" : "Vollbild";
+            if (myChart) setTimeout(() => { myChart.resize(); }, 150);
+        });
+
+        window.addEventListener('resize', () => { if (myChart) myChart.resize(); });
     </script>
 </body>
 </html>
-
-        
