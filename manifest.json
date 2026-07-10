@@ -1,0 +1,21 @@
+{
+  "name": "Polar ECG Viewer PWA",
+  "short_name": "ECG Viewer",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#409EFF",
+  "description": "Ein interaktiver Viewer für Polar EKG JSON-Daten mittels Apache ECharts.",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
