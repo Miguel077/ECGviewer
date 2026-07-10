@@ -51,8 +51,8 @@
         }
         .status-loading { background-color: #e6f7ff; border-left: 4px solid #1890ff; color: #0050b3; }
         .status-success { background-color: #f6ffed; border-left: 4px solid #52c41a; color: #237804; }
+        .status-error { background-color: #fff1f0; border-left: 4px solid #ff4d4f; color: #a8071a; }
 
-        /* Kompakte Einzeilen-Leiste */
         .bottom-bar {
             display: flex; align-items: center; justify-content: space-between;
             background: #f0f4f8; padding: 10px 15px; border-radius: 8px;
@@ -130,7 +130,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    const CACHE_NAME = 'ecg-frequency-viewer-v1';
+                    const CACHE_NAME = 'ecg-frequency-viewer-v3';
                     self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(['./', 'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js']))); });
                     self.addEventListener('fetch', e => { e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))); });
                 `;
@@ -152,23 +152,39 @@
             box.style.display = 'block';
         }
 
+        // Hochrobuster Multi-Block-Parser, der Newlines (\n, \r) restlos eliminiert
         function parseMultiBlockJSON(rawText) {
-            rawText = rawText.trim();
-            const blockStrings = rawText.split(/\]\}\s*(?=\{)/);
+            if (!rawText) throw new Error("Datei ist leer.");
+            
+            // Teilt die Blöcke an der Grenze ]} auf, ignoriert dabei jegliche Whitespaces/Newlines danach
+            const blockStrings = rawText.split(/\]\s*\}\s*(?=\{)/);
             let combinedDataPoints = [];
+            
             for (let i = 0; i < blockStrings.length; i++) {
                 let block = blockStrings[i].trim();
                 if (!block) continue;
+                
+                // Block-Enden sauber rekonstruieren falls nötig
                 if (!block.endsWith('}')) {
-                    const lastClosingBrace = block.lastIndexOf('}');
-                    block = (lastClosingBrace !== -1) ? block.substring(0, lastClosingBrace + 1) + ']}': block + ']}';
-                } else if (!block.endsWith(']}')) { block += ']}'; }
+                    if (block.endsWith(']')) { block += '}'; } 
+                    else { block += ']}'; }
+                } else if (!block.endsWith(']}')) {
+                    block += ']}';
+                }
+                
                 try {
                     const parsedBlock = JSON.parse(block);
-                    if (parsedBlock.data && Array.isArray(parsedBlock.data)) combinedDataPoints = combinedDataPoints.concat(parsedBlock.data);
-                } catch (e) { console.warn(e); }
+                    if (parsedBlock.data && Array.isArray(parsedBlock.data)) {
+                        combinedDataPoints = combinedDataPoints.concat(parsedBlock.data);
+                    }
+                } catch (e) {
+                    console.warn("Überspringe fehlerhaften Sub-Block:", e);
+                }
             }
-            if (combinedDataPoints.length === 0) throw new Error("Keine validen Punkte gefunden.");
+            
+            if (combinedDataPoints.length === 0) {
+                throw new Error("Keine lesbaren EKG-Daten gefunden. Bitte Dateiformat prüfen.");
+            }
             return { data: combinedDataPoints };
         }
 
@@ -182,7 +198,9 @@
                     try {
                         const completeData = parseMultiBlockJSON(evt.target.result);
                         renderECG(completeData);
-                    } catch (err) { showStatus('<b>Fehler:</b> ' + err.message, 'error'); }
+                    } catch (err) { 
+                        showStatus('<b>Fehler beim Parsen:</b> ' + err.message, 'error'); 
+                    }
                 }, 50);
             };
             reader.readAsText(file);
@@ -225,7 +243,7 @@
                     if (!isDragging || !isMeasureMode) return;
                     const pointInPixel = [params.offsetX, params.offsetY];
                     if (myChart.containPixel('grid', pointInPixel)) {
-                        const pointInGrid = myChart.convertFromPixel('grid', pointInPixel);
+                        const pointInGrid = myChart.convertFromPixel('grid', pointInGrid);
                         if (isDragging === 'A') cursorA_val = pointInGrid[0];
                         if (isDragging === 'B') cursorB_val = pointInGrid[0];
                         updateChartLines();
@@ -262,7 +280,7 @@
             };
 
             myChart.setOption(option, true);
-            showStatus('Datei geladen. Zoome an ein Signal heran und klicke "Messen starten".', 'success');
+            showStatus('Datei erfolgreich geladen.', 'success');
             setTimeout(() => { myChart.resize(); }, 100);
         }
 
@@ -312,12 +330,10 @@
             }
         }
 
-        // Berechnet Delta Zeit in ms sowie Frequenz in BPM
         function updateLabels() {
             const diffSeconds = Math.abs(cursorA_val - cursorB_val);
             const diffMs = Math.round(diffSeconds * 1000);
             
-            // Frequenz berechnen: 60 / Zeit-in-Sekunden
             let bpmText = "-- BPM";
             if (diffSeconds > 0) {
                 const bpm = 60 / diffSeconds;
@@ -364,4 +380,3 @@
     </script>
 </body>
 </html>
-
