@@ -96,7 +96,7 @@
 <body>
 
     <div class="header">
-        <h1>Polar EKG Multi-Block Viewer</h1>
+        <h1>Polar EKG Viewer</h1>
     </div>
 
     <div class="main-container">
@@ -305,9 +305,18 @@
                     name: 'Zeit (s)',
                     nameLocation: 'middle',
                     nameGap: 24,
+                    position: 'bottom',
                     interval: 0.2, /* 200ms minor lines */
                     splitLine: { show: false },
-                    axisLabel: { formatter: v => Number(v).toFixed(1), interval: 5 }
+                    // minInterval: 1.0,
+                    axisLabel: { 
+                        formatter: v => Number(v).toFixed(1), 
+                        interval: 'auto',
+                        hideOverlap: true,
+                        margin: 8,
+                        width: 60,
+                        overflow: 'truncate'
+                    }
                 },
                 yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#e8e8e8' } } },
                 dataZoom: [
