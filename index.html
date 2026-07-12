@@ -103,7 +103,7 @@
         <div class="card">
             <div class="upload-zone" onclick="document.getElementById('file-input').click()">
                 <p>Polar-JSON-Datei auswählen oder hierher ziehen</p>
-                <input type="file" id="file-input" class="btn-input" accept=".json">
+                <input type="file" id="file-input" class="btn-input" accept=".json,.jsonl">
                 <button class="btn" type="button">Datei laden</button>
             </div>
             <div id="status-message" class="status-box"></div>
@@ -119,6 +119,7 @@
                 <div class="control-group">
                     <button class="btn btn-measure-start" id="btn-start" onclick="enterMeasureMode()">Messen starten</button>
                     <button class="btn btn-measure-stop" id="btn-stop" onclick="exitMeasureMode()">Messen beenden</button>
+                    <button class="btn" id="btn-toggle-grid" onclick="toggleGridLines()">Raster AN</button>
                 </div>
                 <div class="result-box-compact" id="measurement-result">
                     <span id="res-time">Δt: 0 ms</span>
@@ -129,16 +130,15 @@
     </div>
 
     <script>
-        if ('serviceWorker' in navigator) {
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')) {
             window.addEventListener('load', () => {
-                const swCode = `
-                    const CACHE_NAME = 'ecg-frequency-viewer-v1';
-                    self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(['./', 'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js']))); });
-                    self.addEventListener('fetch', e => { e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))); });
-                `;
-                const blob = new Blob([swCode], {type: 'application/javascript'});
-                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log(err));
+                const scope = location.pathname.replace(/[^/]*$/, '');
+                navigator.serviceWorker.register('./sw.js', { scope })
+                    .then(reg => console.log('Service Worker erfolgreich registriert', reg))
+                    .catch(err => console.log('Service worker registration failed:', err));
             });
+        } else if ('serviceWorker' in navigator) {
+            console.log('Service worker disabled: insecure origin or unsupported protocol');
         }
 
         let myChart = null;
@@ -146,12 +146,62 @@
         let cursorB_val = 0.0;
         let isDragging = null;
         let isMeasureMode = false;
+        let gridLinesVisible = false;
 
         function showStatus(message, type) {
             const box = document.getElementById('status-message');
             box.className = 'status-box status-' + type;
             box.innerHTML = message;
             box.style.display = 'block';
+        }
+
+        function getXAxisExtent() {
+            if (!myChart) return [0, 0];
+            const axisModel = myChart.getModel().getComponent('xAxis', 0);
+            if (!axisModel || !axisModel.axis || !axisModel.axis.scale) return [0, 0];
+            return axisModel.axis.scale.getExtent();
+        }
+
+        function buildGridLinesData() {
+            const [minX, maxX] = getXAxisExtent();
+            if (maxX <= minX) return [];
+            const step = 0.2;
+            const start = Math.floor(minX / step) * step;
+            const end = Math.ceil(maxX / step) * step;
+            const lines = [];
+
+            for (let value = start; value <= end + 1e-9; value += step) {
+                const tickValue = Math.round(value * 100) / 100;
+                const isMajor = Math.abs(tickValue - Math.round(tickValue)) < 1e-8;
+                lines.push({
+                    xAxis: tickValue,
+                    lineStyle: {
+                        color: isMajor ? '#7f7f7f' : '#e6e6e6',
+                        width: isMajor ? 1.0 : 0.6,
+                        type: 'solid'
+                    }
+                });
+            }
+
+            return lines;
+        }
+
+        function updateGridLines() {
+            if (!myChart) return;
+            const gridData = gridLinesVisible ? buildGridLinesData() : [];
+            myChart.setOption({
+                series: [
+                    {},
+                    { markLine: { data: gridData } }
+                ]
+            });
+        }
+
+        function toggleGridLines() {
+            gridLinesVisible = !gridLinesVisible;
+            const button = document.getElementById('btn-toggle-grid');
+            if (button) button.textContent = gridLinesVisible ? 'Raster AUS' : 'Raster AN';
+            updateGridLines();
         }
 
         function parseMultiBlockJSON(rawText) {
@@ -205,6 +255,10 @@
             if (!myChart) {
                 myChart = echarts.init(document.getElementById('chart-container'));
                 
+                myChart.on('datazoom', function () {
+                    if (gridLinesVisible) updateGridLines();
+                });
+
                 myChart.getZr().on('mousedown', function (params) {
                     if (!isMeasureMode) return;
                     const pointInPixel = [params.offsetX, params.offsetY];
@@ -246,11 +300,19 @@
                     formatter: p => `<b>Zeit:</b> ${p[0].value[0].toFixed(3)} s<br/><b>Spannung:</b> ${p[0].value[1]} µV`
                 },
                 grid: { left: '4%', right: '4%', bottom: '60px', top: '40px', containLabel: true },
-                xAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#eee' } } },
+                xAxis: {
+                    type: 'value',
+                    name: 'Zeit (s)',
+                    nameLocation: 'middle',
+                    nameGap: 24,
+                    interval: 0.2, /* 200ms minor lines */
+                    splitLine: { show: false },
+                    axisLabel: { formatter: v => Number(v).toFixed(1), interval: 5 }
+                },
                 yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#e8e8e8' } } },
                 dataZoom: [
-                    { type: 'inside', start: 0, end: 3, disabled: false }, 
-                    { type: 'slider', start: 0, end: 3, disabled: false }
+                    { type: 'inside', start: 0, end: 100, disabled: false }, 
+                    { type: 'slider', start: 0, end: 100, disabled: false }
                 ],
                 series: [{
                     name: 'Spannung',
@@ -260,12 +322,20 @@
                     sampling: 'lttb', 
                     lineStyle: { width: 1.2, color: '#ff4d4f' },
                     markLine: { symbol: ['none', 'none'], silent: true, data: [] }
+                }, {
+                    name: 'Raster',
+                    type: 'line',
+                    data: [],
+                    lineStyle: { opacity: 0 },
+                    itemStyle: { opacity: 0 },
+                    tooltip: { show: false },
+                    markLine: { symbol: ['none', 'none'], silent: true, data: [] }
                 }]
             };
 
             myChart.setOption(option, true);
             showStatus('Datei geladen. Zoome an ein Signal heran und klicke "Messen starten".', 'success');
-            setTimeout(() => { myChart.resize(); }, 100);
+            setTimeout(() => { updateGridLines(); myChart.resize(); }, 100);
         }
 
         function enterMeasureMode() {
