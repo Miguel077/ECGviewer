@@ -159,16 +159,19 @@
             document.querySelectorAll('.btn').forEach((button) => {
                 button.addEventListener('pointerdown', (event) => {
                     if (event.pointerType === 'touch') {
-                        event.preventDefault();
-                    }
-                });
-
-                button.addEventListener('touchend', (event) => {
-                    if (event.target instanceof HTMLButtonElement) {
-                        event.preventDefault();
                         event.stopPropagation();
-                        button.click();
                     }
+                }, { passive: true });
+
+                button.addEventListener('pointerup', (event) => {
+                    if (event.pointerType !== 'touch') return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    button.dispatchEvent(new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        composed: true
+                    }));
                 }, { passive: false });
             });
         }
