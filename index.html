@@ -503,14 +503,16 @@
 
             const { minX, maxX } = getFullTimeRange();
             const visibleWindow = 10;
-            const centerX = selectedZoomCenterX !== null ? selectedZoomCenterX : (minX + maxX) / 2;
+            const fullRange = maxX - minX;
 
-            if (maxX - minX <= visibleWindow) {
+            if (fullRange <= visibleWindow) {
                 applyDataZoomRange(minX, maxX);
             } else {
+                const centerX = selectedZoomCenterX !== null ? selectedZoomCenterX : (minX + maxX) / 2;
                 let startX = centerX - (visibleWindow / 2);
                 let endX = centerX + (visibleWindow / 2);
 
+                // Bounds checking
                 if (startX < minX) {
                     startX = minX;
                     endX = Math.min(maxX, startX + visibleWindow);
@@ -521,12 +523,18 @@
                     startX = Math.max(minX, endX - visibleWindow);
                 }
 
+                // Ensure minimum window size
+                if (endX - startX < visibleWindow && maxX - minX >= visibleWindow) {
+                    if (startX === minX) {
+                        endX = Math.min(maxX, startX + visibleWindow);
+                    } else if (endX === maxX) {
+                        startX = Math.max(minX, endX - visibleWindow);
+                    }
+                }
+
+                // Round to whole seconds
                 startX = Math.floor(startX);
                 endX = Math.floor(endX);
-
-                if (endX - startX < visibleWindow) {
-                    endX = startX + visibleWindow;
-                }
 
                 applyDataZoomRange(startX, endX);
             }
