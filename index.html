@@ -64,18 +64,18 @@
             min-width: 0; 
             box-sizing: border-box;
         }
+
         /* --- ANPASSUNG FÜR QUERFORMAT & DESKTOP (Landscape) --- */
         @media (min-width: 768px) or (orientation: landscape) {
             .btn {
-                /* Im Querformat haben wir genug Platz: Buttons schrumpfen auf Textbreite 
-                oder nutzen eine komfortable, feste Breite */
                 width: auto; 
-                min-width: 90px;
-                font-size: 0.85rem; /* Größere Schrift, wenn Platz da ist */
-                padding: 8px 12px;
-                height: 36px;
+                min-width: 80px;
+                font-size: 0.8rem; 
+                padding: 4px 8px; /* Sehr flaches Padding im Querformat */
+                height: 32px; /* Flachere Buttons sparen vertikalen Platz */
             }
         }
+        
         .btn:hover { background-color: #40a9ff; }
         
         .btn-fullscreen {
@@ -164,18 +164,17 @@
         }
 
         /* HOCHFORMAT IM VOLLBILD:
-           Zieht 125px ab, um genug Platz für die gestapelten Buttons + Werte zu lassen */
+           Zieht weniger Pixel ab, damit das Chart größer wird und die Tasten weiter nach unten rutschen */
         #chart-card:fullscreen #chart-wrapper { 
-            height: calc(100vh - 165px) !important; 
+            height: calc(100vh - 135px) !important; /* Von 165px auf 135px verringert */
             width: 100% !important;
             margin: 0 0 10px 0 !important; 
         }
-
         /* QUERFORMAT IM VOLLBILD:
            Buttons & Werte stehen nebeneinander, wir sparen Platz und ziehen nur 75px ab */
         @media (orientation: landscape) {
             #chart-card:fullscreen #chart-wrapper { 
-                height: calc(100vh - 110px) !important; 
+                height: calc(100vh - 100px) !important; 
             }
         }
 
@@ -236,15 +235,15 @@
             box-sizing: border-box;
         }
 
-        /* Im Querformat & Desktop (Landscape): Zurück zur originalen Reihe (Tasten links, Werte rechts) */
+        /* Im Querformat & Desktop (Landscape): Zurück zur originalen Reihe */
         @media (min-width: 768px) or (orientation: landscape) {
             .btn {
-                flex: none; /* Deaktiviert das Strecken im Querformat */
+                flex: none; 
                 width: auto; 
-                min-width: 85px;
-                font-size: 0.82rem; 
-                padding: 8px 10px;
-                height: 36px;
+                min-width: 80px;
+                font-size: 0.8rem; 
+                padding: 4px 8px;
+                height: 32px;
             }
             
             .bottom-bar {
@@ -252,20 +251,21 @@
                 justify-content: space-between !important; 
                 align-items: center !important;
                 gap: 10px;
-                padding: 8px 12px;
+                padding: 4px 10px !important; /* Extrem flach im Querformat */
+                margin-top: 5px; /* Spart Platz nach oben */
             }
             
             .control-group {
-                width: auto; /* Keine volle Breite im Querformat */
+                width: auto; 
                 flex-wrap: nowrap; 
             }
 
             .result-box-compact {
                 width: auto !important; 
                 justify-content: flex-start !important; 
+                padding: 4px 10px; /* Auch die Messwerte-Box wird flacher */
             }
         }
-
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
 </head>
