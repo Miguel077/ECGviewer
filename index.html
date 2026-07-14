@@ -172,8 +172,8 @@
         /* QUERFORMAT IM VOLLBILD */
         @media (orientation: landscape) {
             #chart-card:fullscreen #chart-wrapper { 
-                height: calc(min(100svh, 100dvh) - 100px) !important;
-                max-height: calc(min(100svh, 100dvh) - 100px) !important;
+                height: calc(min(100svh, 100dvh) - 65px) !important;
+                max-height: calc(min(100svh, 100dvh) - 65px) !important;
                 margin: 0 0 10px 0 !important;
             }
         }
@@ -729,19 +729,31 @@
 
         function toggleFullscreen() {
             const card = document.getElementById('chart-card');
-            const btn = document.getElementById('btn-toggle-fs');
             if (!document.fullscreenElement) {
-                card.requestFullscreen().then(() => {
-                    btn.textContent = "Exit fullscreen";
-                    setTimeout(() => { myChart.resize(); }, 150);
-                }).catch(err => alert(err.message));
-            } else { document.exitFullscreen(); }
+                card.requestFullscreen().catch(err => alert(err.message));
+            } else { 
+                document.exitFullscreen(); 
+            }
         }
 
+        // Dieser Listener kümmert sich jetzt zentral um ALLES, was bei 
+        // Vollbild-Wechseln (rein ODER raus) passieren muss.
         document.addEventListener('fullscreenchange', () => {
             const btn = document.getElementById('btn-toggle-fs');
-            if (!document.fullscreenElement) btn.textContent = "Fullscreen";
-            if (myChart) setTimeout(() => { myChart.resize(); }, 250);
+            
+            // Button-Text je nach Zustand anpassen
+            if (document.fullscreenElement) {
+                btn.textContent = "Exit fullscreen";
+            } else {
+                btn.textContent = "Fullscreen";
+            }
+            
+            // Einmalig verzögertes Resize für die perfekte EKG-Passung
+            if (myChart) {
+                setTimeout(() => { 
+                    myChart.resize(); 
+                }, 250);
+            }
         });
 
         // Automatischer Resize-Beobachter für fehlerfreie Breitenberechnung (auch beim Drehen)
