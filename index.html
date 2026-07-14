@@ -123,8 +123,8 @@
                     <button class="btn btn-measure-start" id="btn-start" onclick="enterMeasureMode()">Start measuring</button>
                     <button class="btn btn-measure-stop" id="btn-stop" onclick="exitMeasureMode()">Stop measuring</button>
                     <button class="btn" id="btn-toggle-grid" onclick="toggleGridLines()">Grid ON</button>
-                    <button class="btn" id="btn-zoom-10s" onclick="setTenSecondView()">10s view</button>
-                    <button class="btn" id="btn-reset-zoom" onclick="resetZoom()">All view</button>
+                    <button class="btn" id="btn-zoom-10s" onclick="setTenSecondView()">view 10s</button>
+                    <button class="btn" id="btn-reset-zoom" onclick="resetZoom()">view all</button>
                 </div>
                 <div class="result-box-compact" id="measurement-result">
                     <span id="res-time">Δt: 0 ms</span>
@@ -159,19 +159,16 @@
             document.querySelectorAll('.btn').forEach((button) => {
                 button.addEventListener('pointerdown', (event) => {
                     if (event.pointerType === 'touch') {
-                        event.stopPropagation();
+                        event.preventDefault();
                     }
-                }, { passive: true });
+                });
 
-                button.addEventListener('pointerup', (event) => {
-                    if (event.pointerType !== 'touch') return;
-                    event.preventDefault();
-                    event.stopPropagation();
-                    button.dispatchEvent(new MouseEvent('click', {
-                        bubbles: true,
-                        cancelable: true,
-                        composed: true
-                    }));
+                button.addEventListener('touchend', (event) => {
+                    if (event.target instanceof HTMLButtonElement) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        button.click();
+                    }
                 }, { passive: false });
             });
         }
@@ -258,17 +255,14 @@
             updateGridLines();
         }
 
-        function getFullTimeRange() {
-            if (!ecgDataPoints.length) return { minX: 0, maxX: 0 };
-            const xValues = ecgDataPoints.map(point => point[0]);
-            return { minX: Math.min(...xValues), maxX: Math.max(...xValues) };
-        }
-
         function applyDataZoomRange(startX, endX) {
             if (!myChart) return;
             const safeStart = Math.min(startX, endX);
             const safeEnd = Math.max(startX, endX);
+            
             myChart.setOption({
+                // WICHTIG: getXAxisOption() ohne Argumente aufrufen, 
+                // damit min/max niemals auf der Achse fixiert werden!
                 xAxis: getXAxisOption(),
                 dataZoom: [
                     { type: 'inside', startValue: safeStart, endValue: safeEnd, disabled: false },
@@ -330,6 +324,7 @@
             }
 
             ecgDataPoints = rawPoints;
+            ecgMaxX = rawPoints[rawPoints.length - 1][0];
 
             if (!myChart) {
                 myChart = echarts.init(document.getElementById('chart-container'));
@@ -499,56 +494,56 @@
         }
 
         function setTenSecondView() {
-            if (!myChart || ecgDataPoints.length < 2) return;
+            if (!myChart || !ecgDataPoints || ecgDataPoints.length < 2) {
+                alert("ECharts oder Datenpunkte nicht bereit!");
+                return;
+            }
 
-            const { minX, maxX } = getFullTimeRange();
-            const visibleWindow = 10;
-            const fullRange = maxX - minX;
+            try {
+                const { minX, maxX } = { minX: 0, maxX: ecgMaxX };
+                const visibleWindow = 10;
+                const fullRange = maxX - minX;
 
-            if (fullRange <= visibleWindow) {
-                applyDataZoomRange(minX, maxX);
-            } else {
-                const centerX = selectedZoomCenterX !== null ? selectedZoomCenterX : (minX + maxX) / 2;
+                // 1. Zoom-Mitte bestimmen
+                const currentExtent = getXAxisExtent();
+                const currentCenter = (currentExtent[0] + currentExtent[1]) / 2;
+                
+                // Welches Zentrum wird gewählt?
+                const sourceOfCenter = selectedZoomCenterX !== null ? "Nutzer-Klick" : "Berechnete Mitte";
+                const centerX = selectedZoomCenterX !== null ? selectedZoomCenterX : currentCenter;
+
                 let startX = centerX - (visibleWindow / 2);
                 let endX = centerX + (visibleWindow / 2);
 
-                // Bounds checking
+                // Grenzen einhalten
                 if (startX < minX) {
                     startX = minX;
-                    endX = Math.min(maxX, startX + visibleWindow);
+                    endX = minX + visibleWindow;
                 }
-
                 if (endX > maxX) {
                     endX = maxX;
-                    startX = Math.max(minX, endX - visibleWindow);
+                    startX = maxX - visibleWindow;
                 }
 
-                // Ensure minimum window size
-                if (endX - startX < visibleWindow && maxX - minX >= visibleWindow) {
-                    if (startX === minX) {
-                        endX = Math.min(maxX, startX + visibleWindow);
-                    } else if (endX === maxX) {
-                        startX = Math.max(minX, endX - visibleWindow);
-                    }
-                }
-
-                // Round to whole seconds
                 startX = Math.floor(startX);
                 endX = Math.floor(endX);
 
                 applyDataZoomRange(startX, endX);
+
+                if (gridLinesVisible) updateGridLines();
+                if (isMeasureMode) updateChartLines();
+                myChart.resize();
+                
+            } catch (error) {
+                alert("Fehler im Ablauf: " + error.message);
             }
-
-            if (gridLinesVisible) updateGridLines();
-            if (isMeasureMode) updateChartLines();
-            myChart.resize();
         }
-
         function resetZoom() {
             if (!myChart) return;
             myChart.setOption({
                 xAxis: getXAxisOption(),
                 dataZoom: [
+                    // Mit start: 0 und end: 100 zeigen wir wieder den vollen Bereich an
                     { type: 'inside', start: 0, end: 100, disabled: false },
                     { type: 'slider', start: 0, end: 100, disabled: false }
                 ]
