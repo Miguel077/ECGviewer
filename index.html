@@ -40,10 +40,10 @@
             background-color: #1890ff; 
             color: white; 
             border: none;
-            padding: 6px 4px; /* Weniger seitliches Padding, damit der Text Platz hat */
+            padding: 6px 2px; /* Schmaleres Padding für sicheren Sitz auf kleinen Displays */
             border-radius: 6px; 
             cursor: pointer;
-            font-size: 0.75rem; /* Etwas kleinere Schrift auf Handys für einzeiligen Text */
+            font-size: 0.72rem; 
             font-weight: 500; 
             transition: background 0.2s;
             touch-action: manipulation;
@@ -54,17 +54,16 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            white-space: normal; /* Erlaubt den Umbruch im Button, falls nötig */
+            white-space: normal; 
             line-height: 1.1;
-            height: 38px; /* Kompakte, einheitliche Höhe */
+            height: 38px;
 
-            /* HOCHFORMAT: Dynamische Breite basierend auf 5 Buttons in einer Zeile.
-            Formel: (100% - alle Gaps) / 5 Buttons. 
-            Bei 5 Buttons haben wir 4 Gaps à 6px = 24px. */
-            width: calc((100% - 24px) / 5); 
+            /* HOCHFORMAT: Flex-Grow sorgt dafür, dass sich alle sichtbaren Buttons 
+               (egal ob gerade 4 oder 5) den Platz exakt und symmetrisch teilen. */
+            flex: 1 1 0px; 
+            min-width: 0; 
             box-sizing: border-box;
         }
-
         /* --- ANPASSUNG FÜR QUERFORMAT & DESKTOP (Landscape) --- */
         @media (min-width: 768px) or (orientation: landscape) {
             .btn {
@@ -81,7 +80,7 @@
         
         .btn-fullscreen {
             position: absolute; top: 15px; right: 15px;
-            background-color: #2c3e50; z-index: 10; padding: 6px 12px; font-size: 0.8rem; width: auto;
+            background-color: #2c3e50; z-index: 10; padding: 6px 12px; font-size: 0.8rem; width: auto; flex: none;
         }
         
         .status-box {
@@ -176,7 +175,7 @@
            Buttons & Werte stehen nebeneinander, wir sparen Platz und ziehen nur 75px ab */
         @media (orientation: landscape) {
             #chart-card:fullscreen #chart-wrapper { 
-                height: calc(100vh - 75px) !important; 
+                height: calc(100vh - 110px) !important; 
             }
         }
 
@@ -200,7 +199,7 @@
         .bottom-bar {
             display: flex; 
             flex-direction: column-reverse; /* Dreht die Reihenfolge um: Werte oben, Tasten unten */
-            align-items: center; 
+            align-items: stretch; 
             justify-content: center;
             background: #f0f4f8; 
             padding: 10px 12px; 
@@ -215,7 +214,7 @@
             display: flex; 
             gap: 6px; 
             align-items: center; 
-            flex-wrap: wrap; 
+            flex-wrap: nowrap; 
             justify-content: center;
         }
 
@@ -239,6 +238,15 @@
 
         /* Im Querformat & Desktop (Landscape): Zurück zur originalen Reihe (Tasten links, Werte rechts) */
         @media (min-width: 768px) or (orientation: landscape) {
+            .btn {
+                flex: none; /* Deaktiviert das Strecken im Querformat */
+                width: auto; 
+                min-width: 85px;
+                font-size: 0.82rem; 
+                padding: 8px 10px;
+                height: 36px;
+            }
+            
             .bottom-bar {
                 flex-direction: row !important; 
                 justify-content: space-between !important; 
@@ -247,6 +255,11 @@
                 padding: 8px 12px;
             }
             
+            .control-group {
+                width: auto; /* Keine volle Breite im Querformat */
+                flex-wrap: nowrap; 
+            }
+
             .result-box-compact {
                 width: auto !important; 
                 justify-content: flex-start !important; 
