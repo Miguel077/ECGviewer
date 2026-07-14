@@ -176,11 +176,26 @@
            über einen stabilen Viewport-Fall berechnet und begrenzt. */
         @media (orientation: landscape) {
             #chart-card:fullscreen #chart-wrapper { 
+                /* Berechnet die Höhe dynamisch */
                 height: calc(min(100svh, 100dvh) - 100px) !important;
-                min-height: 350px !important;
+                
+                /* Maximale Höhe deckelt das Ganze sauber ab */
                 max-height: calc(min(100svh, 100dvh) - 100px) !important;
+                
+                /* Die Rettung: min-height wird auf 0 gesetzt, damit das Chart auf dem 
+                   flachen Handy klein genug schrumpfen DARF, um Platz für die Tasten zu machen. */
+                min-height: 0 !important;
+                
                 margin: 0 0 10px 0 !important;
-           }
+            }
+        }
+
+        /* Nur wenn der Bildschirm im Querformat hoch genug ist (z. B. auf dem PC-Monitor ab 600px Höhe),
+           erlauben wir dem Chart eine komfortable Mindesthöhe von 350px. */
+        @media (orientation: landscape) and (min-height: 600px) {
+            #chart-card:fullscreen #chart-wrapper { 
+                min-height: 350px !important;
+            }
         }
 
         #chart-card:fullscreen .btn-fullscreen { 
