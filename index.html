@@ -54,70 +54,69 @@
             display: none; padding: 10px 14px; border-radius: 6px;
             margin-top: 10px; font-size: 0.9rem;
         }
+
         .status-loading { background-color: #e6f7ff; border-left: 4px solid #1890ff; color: #0050b3; }
         .status-success { background-color: #f6ffed; border-left: 4px solid #52c41a; color: #237804; }
-        
+        .status-error { background-color: #fff2f0; border-left: 4px solid #ff4d4f; color: #a8071a; }
+
         .btn-measure-start { background-color: #2f3542; }
         .btn-measure-stop { background-color: #ff4757; display: none; }
         
-        /* Standard für Mobilgeräte / Hochformat (Portrait) */
-        .bottom-bar {
-            display: flex; 
-            flex-direction: column-reverse; /* Tasten nach unten, Messwerte nach oben */
-            align-items: center; 
-            justify-content: center;
-            background: #f0f4f8; 
-            padding: 12px 15px; 
+        /* --- BASIS-LAYOUT (Mobil & Hochformat) --- */
+
+        #chart-wrapper {
+            position: relative;
+            /* Verwende das super-kompatible vh statt svh */
+            height: 40vh; 
+            min-height: 280px;
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #dcdfe6;
             border-radius: 8px;
-            margin-top: 15px; 
-            border: 1px solid #dcdfe6; 
-            gap: 12px; /* Etwas mehr Abstand zwischen Messwerten und Tasten */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin-bottom: 10px;
+            touch-action: manipulation;
         }
 
-        .control-group { 
-            display: flex; 
-            gap: 8px; 
-            align-items: center; 
-            flex-wrap: wrap; /* Erlaubt den Tasten bei sehr schmalen Handys umzubrechen */
-            justify-content: center;
+        /* Sicherstellen, dass das eigentliche Chart den Wrapper voll ausfüllt */
+        #chart-container {
+            width: 100%;
+            height: 100%;
         }
 
-        .result-box-compact {
-            font-size: 1.05rem; 
-            color: #1890ff; 
-            font-weight: bold;
-            padding: 6px 16px; 
-            background: white; 
-            border-radius: 6px;
-            border: 1px solid #dcdfe6; 
-            white-space: nowrap; 
-            visibility: hidden;
-            display: flex; 
-            gap: 15px;
-            width: 100%; /* Im Hochformat nimmt die Box die volle Breite ein für ein cleanes UI */
-            justify-content: center;
+        /* Kompakterer Container im Hochformat, um Platz zu sparen */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        /* Die Status-Box oben kompakter machen */
+        .status-box {
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
         }
 
         /* --- QUERFORMAT & DESKTOP (Landscape) --- */
-        /* Sobald der Bildschirm breiter als hoch ist oder ein Desktop-Monitor vorliegt */
         @media (min-width: 768px) or (orientation: landscape) {
-            .bottom-bar {
-                flex-direction: row; /* Schaltet zurück auf die originale Nebeneinander-Optik */
-                justify-content: space-between;
-                gap: 10px;
-                padding: 10px 15px;
+            #chart-wrapper {
+                height: 55vh; /* Im Querformat etwas höher */
+                min-height: 380px;
+                margin-bottom: 15px;
             }
             
-            .result-box-compact {
-                width: auto; /* Breite passt sich wieder dem Inhalt an */
-                justify-content: flex-start;
+            .container {
+                padding: 20px;
             }
-        }
-        .frequency-badge { color: #237804; margin-left: 5px; }
+            
+            .status-box {
+                padding: 12px 15px;
+                margin-bottom: 15px;
+                font-size: 1rem;
+            }
+        }     
 
-        #chart-wrapper { position: relative; width: 100%; height: 550px; margin-top: 10px; touch-action: manipulation; }
-        #chart-container { width: 100%; height: 100%; touch-action: manipulation; }
-        
         #chart-card:fullscreen {
             padding: 15px; background: white; width: 100vw; height: 100vh;
             display: flex; flex-direction: column; justify-content: space-between;
@@ -132,6 +131,66 @@
             vertical-align: middle; margin-right: 8px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* --- Neu für die Anordnung von Tasten & Messwerten --- */
+
+        /* Im Hochformat (Portrait): Messwerte über den Tasten zentriert */
+        .bottom-bar {
+            display: flex; 
+            flex-direction: column-reverse; /* Dreht die Reihenfolge um: Werte oben, Tasten unten */
+            align-items: center; 
+            justify-content: center;
+            background: #f0f4f8; 
+            padding: 10px 12px; 
+            border-radius: 8px;
+            margin-top: 10px; 
+            border: 1px solid #dcdfe6; 
+            gap: 10px;
+        }
+
+        /* Tasten-Anordnung */
+        .control-group { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            justify-content: center;
+        }
+
+        /* Messwerte-Box nimmt im Hochformat die volle Breite ein */
+        .result-box-compact {
+            font-size: 1rem; 
+            color: #1890ff; 
+            font-weight: bold;
+            padding: 6px 12px; 
+            background: white; 
+            border-radius: 6px;
+            border: 1px solid #dcdfe6; 
+            white-space: nowrap; 
+            visibility: hidden;
+            display: flex; 
+            gap: 15px;
+            width: 100%; 
+            justify-content: center; 
+            box-sizing: border-box;
+        }
+
+        /* Im Querformat & Desktop (Landscape): Zurück zur originalen Reihe (Tasten links, Werte rechts) */
+        @media (min-width: 768px) or (orientation: landscape) {
+            .bottom-bar {
+                flex-direction: row !important; 
+                justify-content: space-between !important; 
+                align-items: center !important;
+                gap: 10px;
+                padding: 10px 15px;
+            }
+            
+            .result-box-compact {
+                width: auto !important; 
+                justify-content: flex-start !important; 
+            }
+        }
+
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
 </head>
@@ -167,7 +226,7 @@
                 </div>
                 <div class="result-box-compact" id="measurement-result">
                     <span id="res-time">Δt: 0 ms</span>
-                    <span id="res-freq" class="frequency-badge">| Frequency: -- BPM</span>
+                    <span id="res-freq" class="frequency-badge">| Freq: -- BPM</span>
                 </div>
             </div>
         </div>
@@ -610,6 +669,9 @@
         });
 
         window.addEventListener('resize', () => { if (myChart) myChart.resize(); });
+        window.addEventListener('orientationchange', () => { 
+            setTimeout(() => { if (myChart) myChart.resize(); }, 200); 
+        });
     </script>
 </body>
 </html>
