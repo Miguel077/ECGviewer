@@ -66,9 +66,10 @@
 
         #chart-wrapper {
             position: relative;
-            /* Verwende das super-kompatible vh statt svh */
-            height: 40vh; 
-            min-height: 280px;
+            /* Im normalen Modus nutzt das Chart 35% der Bildschirmhöhe. 
+            Das lässt genug Platz für Statusbox, Header und Tasten */
+            height: 35vh; 
+            min-height: 240px;
             width: 100%;
             background: #ffffff;
             border: 1px solid #dcdfe6;
@@ -76,12 +77,17 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             margin-bottom: 10px;
             touch-action: manipulation;
+            overflow: hidden; /* Verhindert Darstellungsfehler beim Drehen */
         }
 
-        /* Sicherstellen, dass das eigentliche Chart den Wrapper voll ausfüllt */
+        /* WICHTIG: Das eigentliche Chart-Element absolut im Wrapper positionieren, 
+        damit ECharts sich nicht an veralteten Flex-Größen beim Drehen verschluckt */
         #chart-container {
-            width: 100%;
-            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
         }
 
         /* Kompakterer Container im Hochformat, um Platz zu sparen */
@@ -101,28 +107,52 @@
         /* --- QUERFORMAT & DESKTOP (Landscape) --- */
         @media (min-width: 768px) or (orientation: landscape) {
             #chart-wrapper {
-                height: 55vh; /* Im Querformat etwas höher */
-                min-height: 380px;
-                margin-bottom: 15px;
+                height: 52vh; /* Im Querformat etwas höher */
+                min-height: 320px;
+                margin-bottom: 12px;
             }
             
             .container {
-                padding: 20px;
-            }
-            
-            .status-box {
-                padding: 12px 15px;
-                margin-bottom: 15px;
-                font-size: 1rem;
+                padding: 15px;
             }
         }     
 
+        /* --- VOLLBILD-OPTIMIERUNG --- */
+        /* Verhindert Darstellungsfehler und füllt den gesamten Bildschirm aus */
         #chart-card:fullscreen {
-            padding: 15px; background: white; width: 100vw; height: 100vh;
-            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 10px; 
+            background: #f4f7f6; 
+            width: 100vw; 
+            height: 100vh;
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between;
+            box-sizing: border-box;
         }
-        #chart-card:fullscreen #chart-wrapper { height: calc(100vh - 90px); width: 100%; margin: 0; }
-        #chart-card:fullscreen .btn-fullscreen { top: 15px; right: 15px; background-color: #ff4d4f; }
+
+        /* HOCHFORMAT IM VOLLBILD:
+           Zieht 125px ab, um genug Platz für die gestapelten Buttons + Werte zu lassen */
+        #chart-card:fullscreen #chart-wrapper { 
+            height: calc(100vh - 125px) !important; 
+            width: 100% !important;
+            margin: 0 0 10px 0 !important; 
+        }
+
+        /* QUERFORMAT IM VOLLBILD:
+           Buttons & Werte stehen nebeneinander, wir sparen Platz und ziehen nur 75px ab */
+        @media (orientation: landscape) {
+            #chart-card:fullscreen #chart-wrapper { 
+                height: calc(100vh - 75px) !important; 
+            }
+        }
+
+        #chart-card:fullscreen .btn-fullscreen { 
+            top: 10px; 
+            right: 10px; 
+            background-color: #ff4d4f; 
+        }
+
+        /* --- AB HIER BLEIBT ALLES ERHALTEN --- */
 
         .spinner {
             display: inline-block; width: 16px; height: 16px;
@@ -131,8 +161,6 @@
             vertical-align: middle; margin-right: 8px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* --- Neu für die Anordnung von Tasten & Messwerten --- */
 
         /* Im Hochformat (Portrait): Messwerte über den Tasten zentriert */
         .bottom-bar {
@@ -426,6 +454,7 @@
 
             if (!myChart) {
                 myChart = echarts.init(document.getElementById('chart-container'));
+                resizeObserver.observe(document.getElementById('chart-wrapper'));
                 
                 myChart.on('datazoom', function () {
                     if (gridLinesVisible) updateGridLines();
@@ -668,7 +697,16 @@
             if (myChart) setTimeout(() => { myChart.resize(); }, 150);
         });
 
-        window.addEventListener('resize', () => { if (myChart) myChart.resize(); });
+        // Automatischer Resize-Beobachter für fehlerfreie Breitenberechnung (auch beim Drehen)
+        const resizeObserver = new ResizeObserver((entries) => {
+            if (myChart) {
+                // Nutzt requestAnimationFrame, um das Flackern beim Drehen zu verhindern
+                requestAnimationFrame(() => {
+                    myChart.resize();
+                });
+            }
+        });
+
         window.addEventListener('orientationchange', () => { 
             setTimeout(() => { if (myChart) myChart.resize(); }, 200); 
         });
