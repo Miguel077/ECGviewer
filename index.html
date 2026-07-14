@@ -156,7 +156,7 @@
             padding: 10px; 
             background: #f4f7f6; 
             width: 100vw; 
-            height: 100vh;
+            height: 100dvh;
             display: flex; 
             flex-direction: column; 
             justify-content: space-between;
@@ -166,7 +166,7 @@
         /* HOCHFORMAT IM VOLLBILD:
            Zieht weniger Pixel ab, damit das Chart größer wird und die Tasten weiter nach unten rutschen */
         #chart-card:fullscreen #chart-wrapper { 
-            height: calc(100vh - 135px) !important; /* Von 165px auf 135px verringert */
+            height: calc(100dvh - 135px) !important; /* Von 165px auf 135px verringert */
             width: 100% !important;
             margin: 0 0 10px 0 !important; 
         }
@@ -174,7 +174,7 @@
            Buttons & Werte stehen nebeneinander, wir sparen Platz und ziehen nur 75px ab */
         @media (orientation: landscape) {
             #chart-card:fullscreen #chart-wrapper { 
-                height: calc(100vh - 100px) !important; 
+                height: calc(100dvh - 100px) !important; 
             }
         }
 
