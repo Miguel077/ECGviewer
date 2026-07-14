@@ -151,31 +151,29 @@
         }     
 
         /* --- VOLLBILD-OPTIMIERUNG --- */
-        /* Verhindert Darstellungsfehler und füllt den gesamten Bildschirm aus */
         #chart-card:fullscreen {
             padding: 10px; 
             background: #f4f7f6; 
             width: 100vw; 
-            height: 100svh;
-            min-height: 100svh;
+            height: min(100svh, 100dvh); 
             display: flex; 
             flex-direction: column; 
             justify-content: space-between;
             box-sizing: border-box;
         }
 
-        /* HOCHFORMAT IM VOLLBILD: */
+        /* HOCHFORMAT IM VOLLBILD */
         #chart-card:fullscreen #chart-wrapper { 
-            height: calc(min(100svh, 100dvh) - 135px) !important;
+            height: calc(min(100svh, 100dvh) - 135px) !important; 
             width: 100% !important;
             margin: 0 0 10px 0 !important; 
         }
-        /* QUERFORMAT IM VOLLBILD: */
+
+        /* QUERFORMAT IM VOLLBILD */
         @media (orientation: landscape) {
             #chart-card:fullscreen #chart-wrapper { 
-                height: calc(min(100svh, 100dvh) - 65px) !important;
-                max-height: calc(min(100svh, 100dvh) - 65px) !important;
-                min-height: 0 !important;
+                height: calc(min(100svh, 100dvh) - 100px) !important;
+                max-height: calc(min(100svh, 100dvh) - 100px) !important;
                 margin: 0 0 10px 0 !important;
             }
         }
@@ -743,7 +741,7 @@
         document.addEventListener('fullscreenchange', () => {
             const btn = document.getElementById('btn-toggle-fs');
             if (!document.fullscreenElement) btn.textContent = "Fullscreen";
-            if (myChart) setTimeout(() => { myChart.resize(); }, 150);
+            if (myChart) setTimeout(() => { myChart.resize(); }, 250);
         });
 
         // Automatischer Resize-Beobachter für fehlerfreie Breitenberechnung (auch beim Drehen)
