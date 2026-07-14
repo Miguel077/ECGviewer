@@ -56,23 +56,62 @@
         }
         .status-loading { background-color: #e6f7ff; border-left: 4px solid #1890ff; color: #0050b3; }
         .status-success { background-color: #f6ffed; border-left: 4px solid #52c41a; color: #237804; }
-
-        /* Compact single-row toolbar */
-        .bottom-bar {
-            display: flex; align-items: center; justify-content: space-between;
-            background: #f0f4f8; padding: 10px 15px; border-radius: 8px;
-            margin-top: 15px; border: 1px solid #dcdfe6; gap: 10px;
-        }
-        .control-group { display: flex; gap: 8px; align-items: center; }
         
         .btn-measure-start { background-color: #2f3542; }
         .btn-measure-stop { background-color: #ff4757; display: none; }
         
+        /* Standard für Mobilgeräte / Hochformat (Portrait) */
+        .bottom-bar {
+            display: flex; 
+            flex-direction: column-reverse; /* Tasten nach unten, Messwerte nach oben */
+            align-items: center; 
+            justify-content: center;
+            background: #f0f4f8; 
+            padding: 12px 15px; 
+            border-radius: 8px;
+            margin-top: 15px; 
+            border: 1px solid #dcdfe6; 
+            gap: 12px; /* Etwas mehr Abstand zwischen Messwerten und Tasten */
+        }
+
+        .control-group { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            flex-wrap: wrap; /* Erlaubt den Tasten bei sehr schmalen Handys umzubrechen */
+            justify-content: center;
+        }
+
         .result-box-compact {
-            font-size: 1.05rem; color: #1890ff; font-weight: bold;
-            padding: 4px 12px; background: white; border-radius: 6px;
-            border: 1px solid #dcdfe6; white-space: nowrap; visibility: hidden;
-            display: flex; gap: 15px;
+            font-size: 1.05rem; 
+            color: #1890ff; 
+            font-weight: bold;
+            padding: 6px 16px; 
+            background: white; 
+            border-radius: 6px;
+            border: 1px solid #dcdfe6; 
+            white-space: nowrap; 
+            visibility: hidden;
+            display: flex; 
+            gap: 15px;
+            width: 100%; /* Im Hochformat nimmt die Box die volle Breite ein für ein cleanes UI */
+            justify-content: center;
+        }
+
+        /* --- QUERFORMAT & DESKTOP (Landscape) --- */
+        /* Sobald der Bildschirm breiter als hoch ist oder ein Desktop-Monitor vorliegt */
+        @media (min-width: 768px) or (orientation: landscape) {
+            .bottom-bar {
+                flex-direction: row; /* Schaltet zurück auf die originale Nebeneinander-Optik */
+                justify-content: space-between;
+                gap: 10px;
+                padding: 10px 15px;
+            }
+            
+            .result-box-compact {
+                width: auto; /* Breite passt sich wieder dem Inhalt an */
+                justify-content: flex-start;
+            }
         }
         .frequency-badge { color: #237804; margin-left: 5px; }
 
@@ -120,11 +159,11 @@
 
             <div class="bottom-bar">
                 <div class="control-group">
-                    <button class="btn btn-measure-start" id="btn-start" onclick="enterMeasureMode()">Start measuring</button>
-                    <button class="btn btn-measure-stop" id="btn-stop" onclick="exitMeasureMode()">Stop measuring</button>
+                    <button class="btn btn-measure-start" id="btn-start" onclick="enterMeasureMode()">Start Meas</button>
+                    <button class="btn btn-measure-stop" id="btn-stop" onclick="exitMeasureMode()">Stop Meas</button>
                     <button class="btn" id="btn-toggle-grid" onclick="toggleGridLines()">Grid ON</button>
-                    <button class="btn" id="btn-zoom-10s" onclick="setTenSecondView()">view 10s</button>
-                    <button class="btn" id="btn-reset-zoom" onclick="resetZoom()">view all</button>
+                    <button class="btn" id="btn-zoom-10s" onclick="setTenSecondView()">View 10s</button>
+                    <button class="btn" id="btn-reset-zoom" onclick="resetZoom()">View All</button>
                 </div>
                 <div class="result-box-compact" id="measurement-result">
                     <span id="res-time">Δt: 0 ms</span>
