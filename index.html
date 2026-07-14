@@ -164,28 +164,16 @@
             box-sizing: border-box;
         }
 
-        /* HOCHFORMAT IM VOLLBILD:
-           Zieht weniger Pixel ab, damit das Chart größer wird und die Tasten weiter nach unten rutschen */
+        /* HOCHFORMAT IM VOLLBILD: */
         #chart-card:fullscreen #chart-wrapper { 
             height: calc(min(100svh, 100dvh) - 135px) !important;
             width: 100% !important;
             margin: 0 0 10px 0 !important; 
         }
-        /* QUERFORMAT IM VOLLBILD:
-           Für einheitliche Darstellung auf Handy und Desktop wird die verfügbare Höhe
-           über einen stabilen Viewport-Fall berechnet und begrenzt. */
+        /* QUERFORMAT IM VOLLBILD: */
         @media (orientation: landscape) {
             #chart-card:fullscreen #chart-wrapper { 
-                /* Berechnet die Höhe dynamisch */
                 height: calc(min(100svh, 100dvh) - 65px) !important;
-                
-                /* Maximale Höhe deckelt das Ganze sauber ab */
-                max-height: calc(min(100svh, 100dvh) - 65px) !important;
-                
-                /* Die Rettung: min-height wird auf 0 gesetzt, damit das Chart auf dem 
-                   flachen Handy klein genug schrumpfen DARF, um Platz für die Tasten zu machen. */
-                min-height: 0 !important;
-                
                 margin: 0 0 10px 0 !important;
             }
         }
@@ -195,8 +183,6 @@
             right: 10px; 
             background-color: #ff4d4f; 
         }
-
-        /* --- AB HIER BLEIBT ALLES ERHALTEN --- */
 
         .spinner {
             display: inline-block; width: 16px; height: 16px;
@@ -387,7 +373,7 @@
                     xAxis: tickValue,
                     label: {show: false},
                     lineStyle: {
-                        color: isMajor ? '#7f7f7f' : '#e6e6e6',
+                        color: isMajor ? '#7f7f7f' : '#bfbfbf',
                         width: isMajor ? 1.0 : 0.6,
                         type: 'solid'
                     }

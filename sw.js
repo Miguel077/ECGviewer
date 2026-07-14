@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ecg-viewer-v1.8.9';
+const CACHE_NAME = 'ecg-viewer-v1.9.0';
 const ASSETS = [
   './',
   './index.html',
