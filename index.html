@@ -174,7 +174,8 @@
            Buttons & Werte stehen nebeneinander, wir sparen Platz und ziehen nur 75px ab */
         @media (orientation: landscape) {
             #chart-card:fullscreen #chart-wrapper { 
-                height: calc(100dvh - 100px) !important; 
+                /* height: calc(100dvh - 100px) !important;  */
+                height: calc(100dvh - max-content - 20px) !important;
             }
         }
 
