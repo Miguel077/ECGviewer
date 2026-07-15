@@ -40,10 +40,10 @@
             background-color: #1890ff;
             color: white;
             border: none;
-            padding: 6px 12px;
+            padding: 6px 2px; /* Schmaleres Padding für sicheren Sitz auf kleinen Displays */
             border-radius: 6px;
             cursor: pointer;
-            font-size: 0.75rem;
+            font-size: 0.72rem;
             font-weight: 500;
             transition: background 0.2s;
             touch-action: manipulation;
@@ -57,6 +57,9 @@
             white-space: normal;
             line-height: 1.1;
             height: 38px;
+
+            /* HOCHFORMAT: Flex-Grow sorgt dafür, dass sich alle sichtbaren Buttons
+               (egal ob gerade 4 oder 5) den Platz exakt und symmetrisch teilen. */
             flex: 1 1 0px;
             min-width: 0;
             box-sizing: border-box;
@@ -68,17 +71,12 @@
                 width: auto;
                 min-width: 80px;
                 font-size: 0.8rem;
-                padding: 4px 12px;
-                height: 32px;
-                flex: none;
+                padding: 4px 8px; /* Sehr flaches Padding im Querformat */
+                height: 32px; /* Flachere Buttons sparen vertikalen Platz */
             }
         }
 
         .btn:hover { background-color: #40a9ff; }
-        .btn-secondary { background-color: #6c757d; }
-        .btn-secondary:hover { background-color: #5a6268; }
-        .btn-success { background-color: #28a745; }
-        .btn-success:hover { background-color: #218838; }
 
         .btn-fullscreen {
             position: absolute; top: 15px; right: 15px;
@@ -101,6 +99,8 @@
 
         #chart-wrapper {
             position: relative;
+            /* Im normalen Modus nutzt das Chart 35% der Bildschirmhöhe.
+            Das lässt genug Platz für Statusbox, Header und Tasten */
             height: 35vh;
             min-height: 240px;
             width: 100%;
@@ -110,9 +110,11 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             margin-bottom: 10px;
             touch-action: manipulation;
-            overflow: hidden;
+            overflow: hidden; /* Verhindert Darstellungsfehler beim Drehen */
         }
 
+        /* WICHTIG: Das eigentliche Chart-Element absolut im Wrapper positionieren,
+        damit ECharts sich nicht an veralteten Flex-Größen beim Drehen verschluckt */
         #chart-container {
             position: absolute;
             top: 0;
@@ -121,20 +123,31 @@
             height: 100% !important;
         }
 
+        /* Kompakterer Container im Hochformat, um Platz zu sparen */
         .container {
             max-width: 800px;
             margin: 0 auto;
             padding: 10px;
         }
 
+        /* Die Status-Box oben kompakter machen */
+        .status-box {
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
         /* --- QUERFORMAT & DESKTOP (Landscape) --- */
         @media (min-width: 768px) or (orientation: landscape) {
             #chart-wrapper {
-                height: 52vh;
+                height: 52vh; /* Im Querformat etwas höher */
                 min-height: 320px;
                 margin-bottom: 12px;
             }
-            .container { padding: 15px; }
+
+            .container {
+                padding: 15px;
+            }
         }
 
         /* --- VOLLBILD-OPTIMIERUNG --- */
@@ -150,6 +163,7 @@
             box-sizing: border-box;
         }
 
+        /* HOCHFORMAT IM VOLLBILD */
         #chart-card:fullscreen #chart-wrapper {
             height: calc(min(100svh, 100dvh) - 135px) !important;
             max-height: calc(min(100svh, 100dvh) - 135px) !important;
@@ -158,6 +172,7 @@
             margin: 0 0 10px 0 !important;
         }
 
+        /* QUERFORMAT IM VOLLBILD */
         @media (orientation: landscape) {
             #chart-card:fullscreen #chart-wrapper {
                 height: calc(min(100svh, 100dvh) - 65px) !important;
@@ -181,9 +196,10 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* Im Hochformat (Portrait): Messwerte über den Tasten zentriert */
         .bottom-bar {
             display: flex;
-            flex-direction: column-reverse;
+            flex-direction: column-reverse; /* Dreht die Reihenfolge um: Werte oben, Tasten unten */
             align-items: stretch;
             justify-content: center;
             background: #f0f4f8;
@@ -194,6 +210,7 @@
             gap: 10px;
         }
 
+        /* Tasten-Anordnung */
         .control-group {
             display: flex;
             gap: 6px;
@@ -202,6 +219,7 @@
             justify-content: center;
         }
 
+        /* Messwerte-Box nimmt im Hochformat die volle Breite ein */
         .result-box-compact {
             font-size: 1rem;
             color: #1890ff;
@@ -219,222 +237,35 @@
             box-sizing: border-box;
         }
 
+        /* Im Querformat & Desktop (Landscape): Zurück zur originalen Reihe */
         @media (min-width: 768px) or (orientation: landscape) {
+            .btn {
+                flex: none;
+                width: auto;
+                min-width: 80px;
+                font-size: 0.8rem;
+                padding: 4px 8px;
+                height: 32px;
+            }
+
             .bottom-bar {
                 flex-direction: row !important;
                 justify-content: space-between !important;
                 align-items: center !important;
                 gap: 10px;
-                padding: 4px 10px !important;
-                margin-top: 5px;
+                padding: 4px 10px !important; /* Extrem flach im Querformat */
+                margin-top: 5px; /* Spart Platz nach oben */
             }
-            .control-group { width: auto; flex-wrap: nowrap; }
+
+            .control-group {
+                width: auto;
+                flex-wrap: nowrap;
+            }
+
             .result-box-compact {
                 width: auto !important;
                 justify-content: flex-start !important;
-                padding: 4px 10px;
-            }
-        }
-
-        /* ========================================================== */
-        /* --- PRINT VIEW MODAL & PRINT STYLES --- */
-        /* ========================================================== */
-        #print-modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .modal-content {
-            background: #fff;
-            max-width: 1100px;
-            margin: 20px auto;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
-
-        .modal-header h2 { margin: 0; font-size: 1.3rem; color: #1a3a5f; }
-
-        .print-settings {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #e9ecef;
-        }
-
-        .setting-field {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .setting-field label {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #495057;
-        }
-
-        .setting-field input, .setting-field select {
-            padding: 6px 10px;
-            font-size: 0.85rem;
-            border-radius: 4px;
-            border: 1px solid #ced4da;
-        }
-
-        /* Screen Preview Container */
-        .print-preview-area {
-            background: #ccd1d9;
-            padding: 20px;
-            border-radius: 8px;
-            overflow-x: auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            max-height: 50vh;
-            border: 1px solid #aab2bd;
-        }
-
-        /* Exact physical design matching ECG grid standards (25mm/s, 10s per line) */
-        .ecg-print-page {
-            background: #ffffff;
-            width: 297mm; /* Standard A4 Landscape */
-            height: 210mm;
-            padding: 15mm 15mm 10mm 15mm; /* Symmetrical A4 margins */
-            box-sizing: border-box;
-            position: relative;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            margin-bottom: 20px;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-        }
-
-        .print-page-header {
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 1px solid #1a3a5f;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
-            font-size: 10pt;
-            color: #1a3a5f;
-            font-weight: bold;
-        }
-
-        .print-page-meta {
-            display: flex;
-            gap: 20px;
-            font-size: 8pt;
-            font-weight: normal;
-            color: #555;
-            align-items: flex-end;
-        }
-
-        .ecg-rows-container {
-            display: flex;
-            flex-direction: column;
-            gap: 6mm; /* space between ECG rows */
-            flex-grow: 1;
-            justify-content: flex-start;
-        }
-
-        .ecg-print-row {
-            width: 250mm; /* Exactly 10s at 25mm/s */
-            height: 35mm; /* Compact printable height */
-            position: relative;
-            border: 1px solid #ff9999;
-            background-color: #fffdfd;
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-
-        /* SVG Overlay matching physical millimeters */
-        .ecg-grid-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .ecg-trace-svg {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 2;
-        }
-
-        .row-time-label {
-            position: absolute;
-            bottom: 1px;
-            left: 2px;
-            font-size: 7pt;
-            color: #d9534f;
-            z-index: 3;
-            background: rgba(255,255,255,0.7);
-            padding: 1px 3px;
-            border-radius: 2px;
-        }
-
-        /* Custom print styling that overrides everything during window.print() */
-        @media print {
-            body * {
-                visibility: hidden;
-            }
-            #print-modal, #print-modal-content, .ecg-print-page, .ecg-print-page * {
-                visibility: visible;
-            }
-            #print-modal {
-                position: absolute;
-                left: 0; top: 0; width: 297mm; height: auto;
-                background: none;
-                padding: 0;
-                overflow: visible;
-                display: block !important;
-            }
-            .modal-content {
-                background: none;
-                box-shadow: none;
-                padding: 0;
-                margin: 0;
-                max-width: none;
-            }
-            .modal-header, .print-settings, .modal-actions {
-                display: none !important;
-            }
-            .print-preview-area {
-                background: none;
-                padding: 0;
-                border: none;
-                overflow: visible;
-                max-height: none;
-                display: block;
-            }
-            .ecg-print-page {
-                box-shadow: none;
-                margin-bottom: 0;
-                page-break-after: always;
-                page-break-inside: avoid;
-            }
-            @page {
-                size: A4 landscape;
-                margin: 0; /* Handled inside the A4 container padding */
+                padding: 4px 10px; /* Auch die Messwerte-Box wird flacher */
             }
         }
     </style>
@@ -469,51 +300,11 @@
                     <button class="btn" id="btn-toggle-grid" onclick="toggleGridLines()">Grid ON</button>
                     <button class="btn" id="btn-zoom-10s" onclick="setTenSecondView()">View 10s</button>
                     <button class="btn" id="btn-reset-zoom" onclick="resetZoom()">View All</button>
-                    <button class="btn btn-success" id="btn-print-view" onclick="openPrintModal()">Print View</button>
                 </div>
                 <div class="result-box-compact" id="measurement-result">
                     <span id="res-time">Δt: 0 ms</span>
                     <span id="res-freq" class="frequency-badge">| Freq: -- BPM</span>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ========================================================== -->
-    <!-- --- PRINT MODAL --- -->
-    <!-- ========================================================== -->
-    <div id="print-modal">
-        <div class="modal-content" id="print-modal-content">
-            <div class="modal-header">
-                <h2>Multi-line ECG Print View (25mm/s)</h2>
-                <button class="btn btn-secondary" onclick="closePrintModal()" style="height:32px;">Close</button>
-            </div>
-
-            <div class="print-settings">
-                <div class="setting-field">
-                    <label for="print-start-time">Start Time (s):</label>
-                    <input type="number" id="print-start-time" value="0" min="0" step="1" onchange="generatePrintPages()">
-                </div>
-                <div class="setting-field">
-                    <label for="print-rows-count">Number of Rows:</label>
-                    <input type="number" id="print-rows-count" value="4" min="1" max="50" onchange="generatePrintPages()">
-                </div>
-                <div class="setting-field">
-                    <label for="print-amplitude">Y-Scale Amplitude (µV/cm):</label>
-                    <select id="print-amplitude" onchange="generatePrintPages()">
-                        <option value="500">500 µV / cm</option>
-                        <option value="1000" selected>1000 µV / cm (Standard)</option>
-                        <option value="2000">2000 µV / cm</option>
-                    </select>
-                </div>
-                <div class="setting-field">
-                    <label>&nbsp;</label>
-                    <button class="btn btn-success" onclick="window.print()" style="height:32px;">Print to PDF / Printer</button>
-                </div>
-            </div>
-
-            <div class="print-preview-area" id="print-preview-area">
-                <!-- Dynamically populated page blocks go here -->
             </div>
         </div>
     </div>
@@ -537,9 +328,7 @@
         let isMeasureMode = false;
         let gridLinesVisible = false;
         let ecgDataPoints = [];
-        let ecgMaxX = 0;
         let selectedZoomCenterX = null;
-        let originalFileName = "ECG_Data";
 
         function attachMobileButtonHandling() {
             document.querySelectorAll('.btn').forEach((button) => {
@@ -627,7 +416,11 @@
 
             const [minX, maxX] = getXAxisExtent();
             const timeSpan = maxX - minX;
+
+            // Die logische Weiche
             const showGrid = gridLinesVisible && (timeSpan > 0 && timeSpan <= 60);
+
+            // GENAU SO: Nur aufrufen, wenn showGrid wahr ist, sonst direkt leeres Array []
             const gridData = showGrid ? buildGridLinesData() : [];
 
             myChart.setOption({
@@ -652,6 +445,8 @@
             const safeEnd = Math.max(startX, endX);
 
             myChart.setOption({
+                // WICHTIG: getXAxisOption() ohne Argumente aufrufen,
+                // damit min/max niemals auf der Achse fixiert werden!
                 xAxis: getXAxisOption(),
                 dataZoom: [
                     { type: 'inside', startValue: safeStart, endValue: safeEnd, disabled: false },
@@ -687,7 +482,6 @@
         document.getElementById('file-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-            originalFileName = file.name.replace(/\.[^/.]+$/, "");
             showStatus('<div class="spinner"></div>Connecting ECG segments...', 'loading');
             const reader = new FileReader();
             reader.onload = function(evt) {
@@ -715,12 +509,6 @@
 
             ecgDataPoints = rawPoints;
             ecgMaxX = rawPoints[rawPoints.length - 1][0];
-
-            // Set natural bounds to the row count configuration in modal
-            const totalSecs = Math.ceil(ecgMaxX);
-            const defaultRows = Math.min(Math.ceil(totalSecs / 10), 12);
-            document.getElementById('print-rows-count').value = defaultRows;
-            document.getElementById('print-rows-count').max = Math.ceil(totalSecs / 10);
 
             if (!myChart) {
                 myChart = echarts.init(document.getElementById('chart-container'));
@@ -852,10 +640,12 @@
             }
         }
 
+        // Calculates delta time in ms and frequency in BPM
         function updateLabels() {
             const diffSeconds = Math.abs(cursorA_val - cursorB_val);
             const diffMs = Math.round(diffSeconds * 1000);
 
+            // Frequenz berechnen: 60 / Zeit-in-Sekunden
             let bpmText = "-- BPM";
             if (diffSeconds > 0) {
                 const bpm = 60 / diffSeconds;
@@ -897,14 +687,20 @@
             try {
                 const { minX, maxX } = { minX: 0, maxX: ecgMaxX };
                 const visibleWindow = 10;
+                const fullRange = maxX - minX;
 
+                // 1. Zoom-Mitte bestimmen
                 const currentExtent = getXAxisExtent();
                 const currentCenter = (currentExtent[0] + currentExtent[1]) / 2;
+
+                // Welches Zentrum wird gewählt?
+                const sourceOfCenter = selectedZoomCenterX !== null ? "Nutzer-Klick" : "Berechnete Mitte";
                 const centerX = selectedZoomCenterX !== null ? selectedZoomCenterX : currentCenter;
 
                 let startX = centerX - (visibleWindow / 2);
                 let endX = centerX + (visibleWindow / 2);
 
+                // Grenzen einhalten
                 if (startX < minX) {
                     startX = minX;
                     endX = minX + visibleWindow;
@@ -927,12 +723,12 @@
                 alert("Fehler im Ablauf: " + error.message);
             }
         }
-
         function resetZoom() {
             if (!myChart) return;
             myChart.setOption({
                 xAxis: getXAxisOption(),
                 dataZoom: [
+                    // Mit start: 0 und end: 100 zeigen wir wieder den vollen Bereich an
                     { type: 'inside', start: 0, end: 100, disabled: false },
                     { type: 'slider', start: 0, end: 100, disabled: false }
                 ]
@@ -953,222 +749,35 @@
 
         document.addEventListener('fullscreenchange', () => {
             const btn = document.getElementById('btn-toggle-fs');
+
+            // Button-Text je nach Zustand anpassen
             if (document.fullscreenElement) {
                 btn.textContent = "Exit fullscreen";
             } else {
                 btn.textContent = "Fullscreen";
             }
+
+            // Einmalig verzögertes Resize für die perfekte EKG-Passung
             if (myChart) {
-                setTimeout(() => { myChart.resize(); }, 250);
+                setTimeout(() => {
+                    myChart.resize();
+                }, 250);
             }
         });
 
+        // Automatischer Resize-Beobachter für fehlerfreie Breitenberechnung (auch beim Drehen)
         const resizeObserver = new ResizeObserver((entries) => {
             if (myChart) {
-                requestAnimationFrame(() => { myChart.resize(); });
+                // Nutzt requestAnimationFrame, um das Flackern beim Drehen zu verhindern
+                requestAnimationFrame(() => {
+                    myChart.resize();
+                });
             }
         });
 
         window.addEventListener('orientationchange', () => {
             setTimeout(() => { if (myChart) myChart.resize(); }, 200);
         });
-
-        // ==========================================================
-        // --- PRINTING & SVG RENDERING LOGIC ---
-        // ==========================================================
-        function openPrintModal() {
-            if (ecgDataPoints.length === 0) {
-                alert("Please load a data file first.");
-                return;
-            }
-            document.getElementById('print-modal').style.display = 'block';
-            const extent = getXAxisExtent();
-            if (extent && extent.length > 0) {
-                document.getElementById('print-start-time').value = extent[0];
-            }
-            generatePrintPages();
-        }
-
-        function closePrintModal() {
-            document.getElementById('print-modal').style.display = 'none';
-        }
-
-        function generatePrintPages() {
-            const container = document.getElementById('print-preview-area');
-            container.innerHTML = '';
-
-            const startSec = parseFloat(document.getElementById('print-start-time').value) || 0;
-            const rowsToDraw = parseInt(document.getElementById('print-rows-count').value) || 4;
-            const ampScaleValue = parseFloat(document.getElementById('print-amplitude').value) || 1000;
-
-            const secPerRow = 10;
-            const rowsPerPage = 4; // Max rows per A4 page to avoid vertical overflow
-
-            let pageDiv = null;
-            let rowsContainer = null;
-
-            for (let i = 0; i < rowsToDraw; i++) {
-                const rowStart = startSec + (i * secPerRow);
-                const rowEnd = rowStart + secPerRow;
-
-                // Create a new A4 print page container if needed
-                if (i % rowsPerPage === 0) {
-                    pageDiv = document.createElement('div');
-                    pageDiv.className = 'ecg-print-page';
-
-                    const pageNum = Math.floor(i / rowsPerPage) + 1;
-                    const totalPages = Math.ceil(rowsToDraw / rowsPerPage);
-
-                    pageDiv.innerHTML = `
-                        <div class="print-page-header">
-                            <div>POLAR ECG LIVE-REPORT</div>
-                            <div class="print-page-meta">
-                                <span>File: <b>${originalFileName}</b></span>
-                                <span>Scale: <b>25 mm/s</b></span>
-                                <span>Y-Gain: <b>${ampScaleValue} µV / cm</b></span>
-                                <span>Page: <b>${pageNum} / ${totalPages}</b></span>
-                            </div>
-                        </div>
-                    `;
-
-                    rowsContainer = document.createElement('div');
-                    rowsContainer.className = 'ecg-rows-container';
-                    pageDiv.appendChild(rowsContainer);
-                    container.appendChild(pageDiv);
-                }
-
-                // Render individual 10-second row
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'ecg-print-row';
-
-                // 1. ECG Grid Overlay (SVG) matching 1mm minor lines and 5mm major lines
-                const gridSvg = createEcgGridSVG(250, 35);
-                rowDiv.appendChild(gridSvg);
-
-                // 2. Plotting Trace Line
-                const traceSvg = createEcgTraceSVG(rowStart, rowEnd, ampScaleValue);
-                rowDiv.appendChild(traceSvg);
-
-                // 3. Time labels
-                const label = document.createElement('div');
-                label.className = 'row-time-label';
-                label.textContent = `${rowStart.toFixed(0)}s - ${rowEnd.toFixed(0)}s`;
-                rowDiv.appendChild(label);
-
-                rowsContainer.appendChild(rowDiv);
-            }
-        }
-
-        function createEcgGridSVG(widthMm, heightMm) {
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svg.setAttribute("class", "ecg-grid-overlay");
-            svg.setAttribute("viewBox", `0 0 ${widthMm} ${heightMm}`);
-            svg.setAttribute("width", "100%");
-            svg.setAttribute("height", "100%");
-            svg.setAttribute("preserveAspectRatio", "none");
-
-            let paths = "";
-
-            // 1mm minor grid lines (0.2s or 1mm equivalent)
-            for (let x = 0; x <= widthMm; x += 1) {
-                if (x % 5 !== 0) {
-                    paths += `M ${x} 0 L ${x} ${heightMm} `;
-                }
-            }
-            for (let y = 0; y <= heightMm; y += 1) {
-                if (y % 5 !== 0) {
-                    paths += `M 0 ${y} L ${widthMm} ${y} `;
-                }
-            }
-            const minorPath = `<path d="${paths}" stroke="#ffcccc" stroke-width="0.15" fill="none" />`;
-
-            // 5mm major grid lines (1s or 5mm equivalent)
-            let majorPaths = "";
-            for (let x = 0; x <= widthMm; x += 5) {
-                majorPaths += `M ${x} 0 L ${x} ${heightMm} `;
-            }
-            for (let y = 0; y <= heightMm; y += 5) {
-                majorPaths += `M 0 ${y} L ${widthMm} ${y} `;
-            }
-            const majorPath = `<path d="${majorPaths}" stroke="#ff9999" stroke-width="0.35" fill="none" />`;
-
-            svg.innerHTML = minorPath + majorPath;
-            return svg;
-        }
-
-        function createEcgTraceSVG(startSec, endSec, ampScale) {
-            const widthMm = 250; // 10s * 25mm/s = 250mm
-            const heightMm = 35; // Row height
-
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            svg.setAttribute("class", "ecg-trace-svg");
-            svg.setAttribute("viewBox", `0 0 ${widthMm} ${heightMm}`);
-            svg.setAttribute("width", "100%");
-            svg.setAttribute("height", "100%");
-            svg.setAttribute("preserveAspectRatio", "none");
-
-            // Filter points within range
-            const step = 1; // Sample rate decimation if needed (normally 130Hz is small enough)
-            let pointsInWindow = [];
-
-            // Binary search start index for performance
-            let startIndex = 0;
-            let low = 0, high = ecgDataPoints.length - 1;
-            while (low <= high) {
-                let mid = Math.floor((low + high) / 2);
-                if (ecgDataPoints[mid][0] < startSec) {
-                    startIndex = mid;
-                    low = mid + 1;
-                } else {
-                    high = mid - 1;
-                }
-            }
-
-            for (let i = startIndex; i < ecgDataPoints.length; i++) {
-                const pt = ecgDataPoints[i];
-                if (pt[0] > endSec) break;
-                if (pt[0] >= startSec) {
-                    pointsInWindow.push(pt);
-                }
-            }
-
-            if (pointsInWindow.length === 0) return svg;
-
-            // Amplitude math:
-            // ampScale: e.g. 1000 µV per cm. (1 cm = 10mm).
-            // So 1000 µV = 10mm => 100 µV = 1mm => y_mm = voltage / 100
-            // Vertically center trace on heightMm / 2 (17.5mm)
-            const centerY = heightMm / 2;
-            const uvPerMm = ampScale / 10;
-
-            let pathD = "";
-            for (let i = 0; i < pointsInWindow.length; i++) {
-                const t = pointsInWindow[i][0];
-                const val = pointsInWindow[i][1];
-
-                // Calculate horizontal position (x in mm)
-                const x = (t - startSec) * 25; // 25mm/s
-
-                // Calculate vertical position (y in mm) - standard ECG logic flips signal or plots correctly
-                // Polar data values are often microvolts with baseline near 0.
-                const y = centerY - (val / uvPerMm);
-
-                if (i === 0) {
-                    pathD += `M ${x.toFixed(2)} ${y.toFixed(2)}`;
-                } else {
-                    pathD += ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
-                }
-            }
-
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("d", pathD);
-            path.setAttribute("stroke", "#112233"); // Solid dark trace over pink grid
-            path.setAttribute("stroke-width", "0.45");
-            path.setAttribute("fill", "none");
-            svg.appendChild(path);
-
-            return svg;
-        }
     </script>
 </body>
 </html>
