@@ -753,17 +753,13 @@
             // Button-Text je nach Zustand anpassen
             if (document.fullscreenElement) {
                 btn.textContent = "Exit fullscreen";
-                window.scrollTo(0, 0);
-                document.documentElement.scrollTop = 0;
-                document.body.scrollTop = 0;
-                const card = document.getElementById('chart-card');
-                if (card) card.scrollTop = 0;
             } else {
                 btn.textContent = "Fullscreen";
             }
 
             // Einmalig verzögertes Resize für die perfekte EKG-Passung
             if (myChart) {
+                myChart.resize();
                 setTimeout(() => {
                     myChart.resize();
                 }, 250);
