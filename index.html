@@ -188,8 +188,6 @@
             background-color: #ff4d4f;
         }
 
-        /* --- AB HIER BLEIBT ALLES ERHALTEN --- */
-
         .spinner {
             display: inline-block; width: 16px; height: 16px;
             border: 2px solid rgba(24,144,255,0.3); border-radius: 50%;
@@ -749,14 +747,17 @@
             }
         }
 
-        // Dieser Listener kümmert sich jetzt zentral um ALLES, was bei
-        // Vollbild-Wechseln (rein ODER raus) passieren muss.
         document.addEventListener('fullscreenchange', () => {
             const btn = document.getElementById('btn-toggle-fs');
 
             // Button-Text je nach Zustand anpassen
             if (document.fullscreenElement) {
                 btn.textContent = "Exit fullscreen";
+                window.scrollTo(0, 0);
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+                const card = document.getElementById('chart-card');
+                if (card) card.scrollTop = 0;
             } else {
                 btn.textContent = "Fullscreen";
             }
