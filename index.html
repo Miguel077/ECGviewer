@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="manifest" href="manifest.json">
-    
+
     <title>Polar ECG Viewer</title>
     <meta name="theme-color" content="#1890ff">
     <style>
@@ -19,32 +19,32 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         .header h1 { margin: 0; font-size: 1.4rem; font-weight: 600; }
-        
+
         .main-container { max-width: 1200px; margin: 15px auto; padding: 0 15px; }
-        
+
         .card {
             background: white; border-radius: 12px; padding: 20px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.05); margin-bottom: 15px;
             position: relative;
         }
-        
+
         .upload-zone {
             border: 2px dashed #1890ff; border-radius: 8px; padding: 20px;
             text-align: center; background: #f9fbfd; cursor: pointer;
         }
         .upload-zone p { margin: 0 0 10px 0; font-size: 1rem; color: #444; }
-        
+
         .btn-input { display: none; }
         /* --- BUTTON-STYLING (Allgemein) --- */
         .btn {
-            background-color: #1890ff; 
-            color: white; 
+            background-color: #1890ff;
+            color: white;
             border: none;
             padding: 6px 2px; /* Schmaleres Padding für sicheren Sitz auf kleinen Displays */
-            border-radius: 6px; 
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.72rem; 
-            font-weight: 500; 
+            font-size: 0.72rem;
+            font-weight: 500;
             transition: background 0.2s;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
@@ -54,35 +54,35 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            white-space: normal; 
+            white-space: normal;
             line-height: 1.1;
             height: 38px;
 
-            /* HOCHFORMAT: Flex-Grow sorgt dafür, dass sich alle sichtbaren Buttons 
+            /* HOCHFORMAT: Flex-Grow sorgt dafür, dass sich alle sichtbaren Buttons
                (egal ob gerade 4 oder 5) den Platz exakt und symmetrisch teilen. */
-            flex: 1 1 0px; 
-            min-width: 0; 
+            flex: 1 1 0px;
+            min-width: 0;
             box-sizing: border-box;
         }
 
         /* --- ANPASSUNG FÜR QUERFORMAT & DESKTOP (Landscape) --- */
         @media (min-width: 768px) or (orientation: landscape) {
             .btn {
-                width: auto; 
+                width: auto;
                 min-width: 80px;
-                font-size: 0.8rem; 
+                font-size: 0.8rem;
                 padding: 4px 8px; /* Sehr flaches Padding im Querformat */
                 height: 32px; /* Flachere Buttons sparen vertikalen Platz */
             }
         }
-        
+
         .btn:hover { background-color: #40a9ff; }
-        
+
         .btn-fullscreen {
             position: absolute; top: 15px; right: 15px;
             background-color: #2c3e50; z-index: 10; padding: 6px 12px; font-size: 0.8rem; width: auto; flex: none;
         }
-        
+
         .status-box {
             display: none; padding: 10px 14px; border-radius: 6px;
             margin-top: 10px; font-size: 0.9rem;
@@ -94,14 +94,14 @@
 
         .btn-measure-start { background-color: #2f3542; }
         .btn-measure-stop { background-color: #ff4757; display: none; }
-        
+
         /* --- BASIS-LAYOUT (Mobil & Hochformat) --- */
 
         #chart-wrapper {
             position: relative;
-            /* Im normalen Modus nutzt das Chart 35% der Bildschirmhöhe. 
+            /* Im normalen Modus nutzt das Chart 35% der Bildschirmhöhe.
             Das lässt genug Platz für Statusbox, Header und Tasten */
-            height: 35vh; 
+            height: 35vh;
             min-height: 240px;
             width: 100%;
             background: #ffffff;
@@ -113,7 +113,7 @@
             overflow: hidden; /* Verhindert Darstellungsfehler beim Drehen */
         }
 
-        /* WICHTIG: Das eigentliche Chart-Element absolut im Wrapper positionieren, 
+        /* WICHTIG: Das eigentliche Chart-Element absolut im Wrapper positionieren,
         damit ECharts sich nicht an veralteten Flex-Größen beim Drehen verschluckt */
         #chart-container {
             position: absolute;
@@ -144,44 +144,48 @@
                 min-height: 320px;
                 margin-bottom: 12px;
             }
-            
+
             .container {
                 padding: 15px;
             }
-        }     
+        }
 
         /* --- VOLLBILD-OPTIMIERUNG --- */
         #chart-card:fullscreen {
-            padding: 10px; 
-            background: #f4f7f6; 
-            width: 100vw; 
-            height: min(100svh, 100dvh); 
-            display: flex; 
-            flex-direction: column; 
+            padding: 10px;
+            background: #f4f7f6;
+            width: 100vw;
+            height: min(100svh, 100dvh);
+            min-height: 0 !important;
+            display: flex;
+            flex-direction: column;
             justify-content: space-between;
             box-sizing: border-box;
         }
 
         /* HOCHFORMAT IM VOLLBILD */
-        #chart-card:fullscreen #chart-wrapper { 
-            height: calc(min(100svh, 100dvh) - 135px) !important; 
+        #chart-card:fullscreen #chart-wrapper {
+            height: calc(min(100svh, 100dvh) - 135px) !important;
+            max-height: calc(min(100svh, 100dvh) - 135px) !important;
             width: 100% !important;
-            margin: 0 0 10px 0 !important; 
+            min-height: 0 !important;
+            margin: 0 0 10px 0 !important;
         }
 
         /* QUERFORMAT IM VOLLBILD */
         @media (orientation: landscape) {
-            #chart-card:fullscreen #chart-wrapper { 
+            #chart-card:fullscreen #chart-wrapper {
                 height: calc(min(100svh, 100dvh) - 65px) !important;
                 max-height: calc(min(100svh, 100dvh) - 65px) !important;
+                min-height: 0 !important;
                 margin: 0 0 10px 0 !important;
             }
         }
 
-        #chart-card:fullscreen .btn-fullscreen { 
-            top: 10px; 
-            right: 10px; 
-            background-color: #ff4d4f; 
+        #chart-card:fullscreen .btn-fullscreen {
+            top: 10px;
+            right: 10px;
+            background-color: #ff4d4f;
         }
 
         /* --- AB HIER BLEIBT ALLES ERHALTEN --- */
@@ -196,73 +200,73 @@
 
         /* Im Hochformat (Portrait): Messwerte über den Tasten zentriert */
         .bottom-bar {
-            display: flex; 
+            display: flex;
             flex-direction: column-reverse; /* Dreht die Reihenfolge um: Werte oben, Tasten unten */
-            align-items: stretch; 
+            align-items: stretch;
             justify-content: center;
-            background: #f0f4f8; 
-            padding: 10px 12px; 
+            background: #f0f4f8;
+            padding: 10px 12px;
             border-radius: 8px;
-            margin-top: 10px; 
-            border: 1px solid #dcdfe6; 
+            margin-top: 10px;
+            border: 1px solid #dcdfe6;
             gap: 10px;
         }
 
         /* Tasten-Anordnung */
-        .control-group { 
-            display: flex; 
-            gap: 6px; 
-            align-items: center; 
-            flex-wrap: nowrap; 
+        .control-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: nowrap;
             justify-content: center;
         }
 
         /* Messwerte-Box nimmt im Hochformat die volle Breite ein */
         .result-box-compact {
-            font-size: 1rem; 
-            color: #1890ff; 
+            font-size: 1rem;
+            color: #1890ff;
             font-weight: bold;
-            padding: 6px 12px; 
-            background: white; 
+            padding: 6px 12px;
+            background: white;
             border-radius: 6px;
-            border: 1px solid #dcdfe6; 
-            white-space: nowrap; 
+            border: 1px solid #dcdfe6;
+            white-space: nowrap;
             visibility: hidden;
-            display: flex; 
+            display: flex;
             gap: 15px;
-            width: 100%; 
-            justify-content: center; 
+            width: 100%;
+            justify-content: center;
             box-sizing: border-box;
         }
 
         /* Im Querformat & Desktop (Landscape): Zurück zur originalen Reihe */
         @media (min-width: 768px) or (orientation: landscape) {
             .btn {
-                flex: none; 
-                width: auto; 
+                flex: none;
+                width: auto;
                 min-width: 80px;
-                font-size: 0.8rem; 
+                font-size: 0.8rem;
                 padding: 4px 8px;
                 height: 32px;
             }
-            
+
             .bottom-bar {
-                flex-direction: row !important; 
-                justify-content: space-between !important; 
+                flex-direction: row !important;
+                justify-content: space-between !important;
                 align-items: center !important;
                 gap: 10px;
                 padding: 4px 10px !important; /* Extrem flach im Querformat */
                 margin-top: 5px; /* Spart Platz nach oben */
             }
-            
+
             .control-group {
-                width: auto; 
-                flex-wrap: nowrap; 
+                width: auto;
+                flex-wrap: nowrap;
             }
 
             .result-box-compact {
-                width: auto !important; 
-                justify-content: flex-start !important; 
+                width: auto !important;
+                justify-content: flex-start !important;
                 padding: 4px 10px; /* Auch die Messwerte-Box wird flacher */
             }
         }
@@ -411,7 +415,16 @@
 
         function updateGridLines() {
             if (!myChart) return;
-            const gridData = gridLinesVisible ? buildGridLinesData() : [];
+
+            const [minX, maxX] = getXAxisExtent();
+            const timeSpan = maxX - minX;
+
+            // Die logische Weiche
+            const showGrid = gridLinesVisible && (timeSpan > 0 && timeSpan <= 60);
+
+            // GENAU SO: Nur aufrufen, wenn showGrid wahr ist, sonst direkt leeres Array []
+            const gridData = showGrid ? buildGridLinesData() : [];
+
             myChart.setOption({
                 xAxis: getXAxisOption(),
                 series: [
@@ -432,9 +445,9 @@
             if (!myChart) return;
             const safeStart = Math.min(startX, endX);
             const safeEnd = Math.max(startX, endX);
-            
+
             myChart.setOption({
-                // WICHTIG: getXAxisOption() ohne Argumente aufrufen, 
+                // WICHTIG: getXAxisOption() ohne Argumente aufrufen,
                 // damit min/max niemals auf der Achse fixiert werden!
                 xAxis: getXAxisOption(),
                 dataZoom: [
@@ -491,7 +504,7 @@
             const firstTs = jsonData.data[0].timeStamp;
             const len = jsonData.data.length;
             const rawPoints = new Array(len);
-            
+
             for (let i = 0; i < len; i++) {
                 rawPoints[i] = [(jsonData.data[i].timeStamp - firstTs) / 1000000000, jsonData.data[i].voltage];
             }
@@ -502,7 +515,7 @@
             if (!myChart) {
                 myChart = echarts.init(document.getElementById('chart-container'));
                 resizeObserver.observe(document.getElementById('chart-wrapper'));
-                
+
                 myChart.on('datazoom', function () {
                     if (gridLinesVisible) updateGridLines();
                 });
@@ -523,7 +536,7 @@
                         const clickedX = pointInGrid[0];
 
                         const axisRange = myChart.getOption().xAxis[0].max - myChart.getOption().xAxis[0].min;
-                        const threshold = axisRange ? axisRange * 0.025 : 0.5; 
+                        const threshold = axisRange ? axisRange * 0.025 : 0.5;
 
                         if (Math.abs(clickedX - cursorA_val) < threshold && Math.abs(clickedX - cursorA_val) < Math.abs(clickedX - cursorB_val)) {
                             isDragging = 'A';
@@ -549,7 +562,7 @@
             }
 
             const option = {
-                animation: false, 
+                animation: false,
                 title: { text: 'ECG signal trace', left: 'center', textStyle: { fontSize: 14 } },
                 tooltip: {
                     trigger: 'axis',
@@ -559,7 +572,7 @@
                 xAxis: getXAxisOption(),
                 yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#e8e8e8' } } },
                 dataZoom: [
-                    { type: 'inside', start: 0, end: 100, disabled: false }, 
+                    { type: 'inside', start: 0, end: 100, disabled: false },
                     { type: 'slider', start: 0, end: 100, disabled: false }
                 ],
                 series: [{
@@ -567,7 +580,7 @@
                     type: 'line',
                     data: rawPoints,
                     showSymbol: false,
-                    sampling: 'lttb', 
+                    sampling: 'lttb',
                     lineStyle: { width: 1.2, color: '#ff4d4f' },
                     markLine: { symbol: ['none', 'none'], silent: true, data: [] }
                 }, {
@@ -633,7 +646,7 @@
         function updateLabels() {
             const diffSeconds = Math.abs(cursorA_val - cursorB_val);
             const diffMs = Math.round(diffSeconds * 1000);
-            
+
             // Frequenz berechnen: 60 / Zeit-in-Sekunden
             let bpmText = "-- BPM";
             if (diffSeconds > 0) {
@@ -681,7 +694,7 @@
                 // 1. Zoom-Mitte bestimmen
                 const currentExtent = getXAxisExtent();
                 const currentCenter = (currentExtent[0] + currentExtent[1]) / 2;
-                
+
                 // Welches Zentrum wird gewählt?
                 const sourceOfCenter = selectedZoomCenterX !== null ? "Nutzer-Klick" : "Berechnete Mitte";
                 const centerX = selectedZoomCenterX !== null ? selectedZoomCenterX : currentCenter;
@@ -707,7 +720,7 @@
                 if (gridLinesVisible) updateGridLines();
                 if (isMeasureMode) updateChartLines();
                 myChart.resize();
-                
+
             } catch (error) {
                 alert("Fehler im Ablauf: " + error.message);
             }
@@ -731,27 +744,27 @@
             const card = document.getElementById('chart-card');
             if (!document.fullscreenElement) {
                 card.requestFullscreen().catch(err => alert(err.message));
-            } else { 
-                document.exitFullscreen(); 
+            } else {
+                document.exitFullscreen();
             }
         }
 
-        // Dieser Listener kümmert sich jetzt zentral um ALLES, was bei 
+        // Dieser Listener kümmert sich jetzt zentral um ALLES, was bei
         // Vollbild-Wechseln (rein ODER raus) passieren muss.
         document.addEventListener('fullscreenchange', () => {
             const btn = document.getElementById('btn-toggle-fs');
-            
+
             // Button-Text je nach Zustand anpassen
             if (document.fullscreenElement) {
                 btn.textContent = "Exit fullscreen";
             } else {
                 btn.textContent = "Fullscreen";
             }
-            
+
             // Einmalig verzögertes Resize für die perfekte EKG-Passung
             if (myChart) {
-                setTimeout(() => { 
-                    myChart.resize(); 
+                setTimeout(() => {
+                    myChart.resize();
                 }, 250);
             }
         });
@@ -766,8 +779,8 @@
             }
         });
 
-        window.addEventListener('orientationchange', () => { 
-            setTimeout(() => { if (myChart) myChart.resize(); }, 200); 
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => { if (myChart) myChart.resize(); }, 200);
         });
     </script>
 </body>
