@@ -631,7 +631,7 @@
             const gridData = showGrid ? buildGridLinesData() : [];
 
             myChart.setOption({
-                xAxis: getXAxisOption(),
+                xAxis: getXAxisOption(0, ecgMaxX),
                 series: [
                     {},
                     { markLine: { data: gridData } }
@@ -648,13 +648,13 @@
 
         function applyDataZoomRange(startX, endX) {
             if (!myChart) return;
-            const safeStart = Math.min(startX, endX);
+                xAxis: getXAxisOption(minX, maxX),
             const safeEnd = Math.max(startX, endX);
 
             myChart.setOption({
-                xAxis: getXAxisOption(),
+                xAxis: getXAxisOption(safeStart, safeEnd),
                 dataZoom: [
-                    { type: 'inside', startValue: safeStart, endValue: safeEnd, disabled: false },
+                    { type: 'inside', startValue: safeStart, endValue: safeEnd, realtime: true, throttle: 40, disabled: false },
                     { type: 'slider', startValue: safeStart, endValue: safeEnd, disabled: false }
                 ]
             });
@@ -882,8 +882,8 @@
                 xAxis: getXAxisOption(),
                 yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#e8e8e8' } } },
                 dataZoom: [
-                    { type: 'inside', start: 0, end: 100, disabled: false },
-                    { type: 'slider', start: 0, end: 100, disabled: false }
+                    { type: 'inside', startValue: 0, endValue: ecgMaxX, realtime: true, throttle: 40, disabled: false },
+                    { type: 'slider', startValue: 0, endValue: ecgMaxX, disabled: false }
                 ],
                 series: [{
                     name: 'Voltage',
@@ -926,7 +926,7 @@
             cursorB_val = minX + (width * 0.66);
 
             myChart.setOption({
-                xAxis: getXAxisOption(),
+                xAxis: getXAxisOption(minX, maxX),
                 dataZoom: [{ type: 'inside', disabled: true }, { type: 'slider', disabled: true }],
                 series: [{
                     markLine: getMeasureMarkLineConfig()
@@ -944,8 +944,11 @@
             document.getElementById('measurement-result').style.visibility = 'hidden';
 
             if (myChart) {
+                const extent = getXAxisExtent();
+                const minX = extent[0];
+                const maxX = extent[1];
                 myChart.setOption({
-                    xAxis: getXAxisOption(),
+                    xAxis: getXAxisOption(minX, maxX),
                     dataZoom: [{ type: 'inside', disabled: false }, { type: 'slider', disabled: false }],
                     series: [{ markLine: { symbol: ['none', 'none'], silent: true, lineStyle: { opacity: 0 }, data: [] } }]
                 });
@@ -1014,9 +1017,7 @@
                     startX = maxX - visibleWindow;
                 }
 
-                startX = Math.floor(startX);
-                endX = Math.floor(endX);
-
+                // use floating values for smooth zoom (no rounding)
                 applyDataZoomRange(startX, endX);
 
                 if (gridLinesVisible) updateGridLines();
@@ -1031,10 +1032,10 @@
         function resetZoom() {
             if (!myChart) return;
             myChart.setOption({
-                xAxis: getXAxisOption(),
+                xAxis: getXAxisOption(0, ecgMaxX),
                 dataZoom: [
-                    { type: 'inside', start: 0, end: 100, disabled: false },
-                    { type: 'slider', start: 0, end: 100, disabled: false }
+                    { type: 'inside', startValue: 0, endValue: ecgMaxX, realtime: true, throttle: 40, disabled: false },
+                    { type: 'slider', startValue: 0, endValue: ecgMaxX, disabled: false }
                 ]
             });
             if (gridLinesVisible) updateGridLines();
