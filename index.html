@@ -540,10 +540,6 @@
         let ecgMaxX = 0;
         let selectedZoomCenterX = null;
         let originalFileName = "ECG_Data";
-        // Touch/pinch state for custom two-finger zoom
-        let _touchPointers = new Map();
-        let _pinchState = null; // { startDist, startRange, centerDataX }
-        let _pinchRaf = null;
 
         function attachMobileButtonHandling() {
             document.querySelectorAll('.btn').forEach((button) => {
@@ -635,7 +631,7 @@
             const gridData = showGrid ? buildGridLinesData() : [];
 
             myChart.setOption({
-                xAxis: getXAxisOption(0, ecgMaxX),
+                xAxis: getXAxisOption(),
                 series: [
                     {},
                     { markLine: { data: gridData } }
@@ -656,9 +652,9 @@
             const safeEnd = Math.max(startX, endX);
 
             myChart.setOption({
-                xAxis: getXAxisOption(safeStart, safeEnd),
+                xAxis: getXAxisOption(),
                 dataZoom: [
-                    { type: 'inside', startValue: safeStart, endValue: safeEnd, realtime: true, throttle: 40, zoomOnMouseWheel: true, moveOnMouseMove: true, disabled: false },
+                    { type: 'inside', startValue: safeStart, endValue: safeEnd, disabled: false },
                     { type: 'slider', startValue: safeStart, endValue: safeEnd, disabled: false }
                 ]
             });
@@ -899,150 +895,6 @@
                 myChart.getZr().on('globalout', function () { isDragging = null; });
             }
 
-            // enable custom touch pinch-to-zoom for two-finger gestures (stable version)
-            function enableTouchPinchZoom() {
-                const wrapper = document.getElementById('chart-wrapper');
-                if (!wrapper) return;
-                wrapper.style.touchAction = 'none';
-
-                function getDist(p1, p2) {
-                    const dx = p2.x - p1.x;
-                    const dy = p2.y - p1.y;
-                    return Math.hypot(dx, dy);
-                }
-
-                function getCenter(p1, p2) {
-                    return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-                }
-
-                function updatePinch() {
-                    _pinchRaf = null;
-                    if (!_pinchState) return;
-                    const entries = Array.from(_touchPointers.values());
-                    if (entries.length < 2) return;
-                    const p1 = entries[0], p2 = entries[1];
-                    const newDist = getDist(p1, p2);
-
-                    // Ignore if startDist too small
-                    if (_pinchState.startDist < 6) return;
-
-                    const relativeChange = Math.abs(newDist - _pinchState.startDist) / _pinchState.startDist;
-                    if (relativeChange < 0.005) return; // require >=0.5% change to act
-
-                    // Compute target range (smaller range => zoom in)
-                    const targetRange = Math.max(0.05, _pinchState.startRange * (_pinchState.startDist / newDist));
-
-                    // Smooth transition from current range toward targetRange
-                    const extent = getXAxisExtent();
-                    const currentRange = Math.max(0.0001, extent[1] - extent[0]);
-                    const alpha = 0.25; // smoothing factor
-                    const smoothedRange = currentRange + (targetRange - currentRange) * alpha;
-
-                    // compute current center from pixel positions each frame for stability
-                    const rect = wrapper.getBoundingClientRect();
-                    const centerPx = getCenter(p1, p2);
-                    const pixel = [centerPx.x - rect.left, centerPx.y - rect.top];
-                    let centerDataX = _pinchState.centerDataX;
-                    try {
-                        const dataCoord = myChart.convertFromPixel('grid', pixel);
-                        if (dataCoord && dataCoord.length) centerDataX = dataCoord[0];
-                    } catch (e) { /* keep previous center */ }
-
-                    const half = smoothedRange / 2;
-                    let newStart = centerDataX - half;
-                    let newEnd = centerDataX + half;
-
-                    if (newStart < 0) { newStart = 0; newEnd = Math.min(smoothedRange, ecgMaxX); }
-                    if (newEnd > ecgMaxX) { newEnd = ecgMaxX; newStart = Math.max(0, ecgMaxX - smoothedRange); }
-
-                    // Only dispatch if change is noticeable relative to current extent
-                    const rel = Math.abs((newEnd - newStart) / currentRange - 1);
-                    if (rel < 0.002) return;
-
-                    // Use dispatchAction to update zoom without resetting other options
-                    try {
-                        myChart.dispatchAction({
-                            type: 'dataZoom',
-                            startValue: newStart,
-                            endValue: newEnd
-                        });
-                    } catch (e) {
-                        // fallback
-                        applyDataZoomRange(newStart, newEnd);
-                    }
-                }
-
-                wrapper.addEventListener('pointerdown', (ev) => {
-                    if (ev.pointerType !== 'touch') return;
-                    wrapper.setPointerCapture(ev.pointerId);
-                    _touchPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, id: ev.pointerId });
-
-                    if (_touchPointers.size === 2) {
-                        const entries = Array.from(_touchPointers.values());
-                        const p1 = entries[0], p2 = entries[1];
-                        const dist = getDist(p1, p2);
-                        const extent = getXAxisExtent();
-                        const startRange = Math.max(0.0001, extent[1] - extent[0]);
-
-                        // compute data-space center from pixel center
-                        const rect = wrapper.getBoundingClientRect();
-                        const centerPx = getCenter(p1, p2);
-                        const pixel = [centerPx.x - rect.left, centerPx.y - rect.top];
-                        let centerDataX = (extent[0] + extent[1]) / 2;
-                        try {
-                            const dataCoord = myChart.convertFromPixel('grid', pixel);
-                            if (dataCoord && dataCoord.length) centerDataX = dataCoord[0];
-                        } catch (e) { /* use center fallback */ }
-
-                        _pinchState = { startDist: dist, startRange: startRange, centerDataX };
-                        try {
-                            // Disable ECharts built-in inside dataZoom while we handle pinch
-                            myChart.setOption({
-                                dataZoom: [
-                                    { type: 'inside', disabled: true },
-                                    { type: 'slider', disabled: false }
-                                ]
-                            });
-                        } catch (e) { console.warn('disable built-in dataZoom failed', e); }
-                    }
-                });
-
-                wrapper.addEventListener('pointermove', (ev) => {
-                    if (ev.pointerType !== 'touch') return;
-                    if (!_touchPointers.has(ev.pointerId)) return;
-                    _touchPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, id: ev.pointerId });
-
-                    if (_pinchState) {
-                        if (!_pinchRaf) _pinchRaf = requestAnimationFrame(updatePinch);
-                    }
-                }, { passive: true });
-
-                function endPointer(ev) {
-                    if (ev.pointerType !== 'touch') return;
-                    _touchPointers.delete(ev.pointerId);
-                    try { wrapper.releasePointerCapture(ev.pointerId); } catch (e) {}
-                    if (_touchPointers.size < 2) {
-                        _pinchState = null;
-                        if (_pinchRaf) { cancelAnimationFrame(_pinchRaf); _pinchRaf = null; }
-                        try {
-                            // Re-enable built-in inside dataZoom after pinch ends
-                            myChart.setOption({
-                                dataZoom: [
-                                    { type: 'inside', realtime: true, throttle: 40, zoomOnMouseWheel: true, moveOnMouseMove: true, disabled: false },
-                                    { type: 'slider', disabled: false }
-                                ]
-                            });
-                        } catch (e) { console.warn('re-enable built-in dataZoom failed', e); }
-                    }
-                }
-
-                wrapper.addEventListener('pointerup', endPointer);
-                wrapper.addEventListener('pointercancel', endPointer);
-                wrapper.addEventListener('pointerleave', endPointer);
-            }
-
-            try { enableTouchPinchZoom(); } catch (e) { console.warn('enableTouchPinchZoom failed', e); }
-
             const option = {
                 animation: false,
                 title: { text: 'ECG signal trace', left: 'center', textStyle: { fontSize: 14 } },
@@ -1054,8 +906,8 @@
                 xAxis: getXAxisOption(),
                 yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#e8e8e8' } } },
                 dataZoom: [
-                    { type: 'inside', startValue: 0, endValue: ecgMaxX, realtime: true, throttle: 40, zoomOnMouseWheel: true, moveOnMouseMove: true, disabled: false },
-                    { type: 'slider', startValue: 0, endValue: ecgMaxX, disabled: false }
+                    { type: 'inside', start: 0, end: 100, disabled: false },
+                    { type: 'slider', start: 0, end: 100, disabled: false }
                 ],
                 series: [{
                     name: 'Voltage',
@@ -1098,7 +950,7 @@
             cursorB_val = minX + (width * 0.66);
 
             myChart.setOption({
-                xAxis: getXAxisOption(minX, maxX),
+                xAxis: getXAxisOption(),
                 dataZoom: [{ type: 'inside', disabled: true }, { type: 'slider', disabled: true }],
                 series: [{
                     markLine: getMeasureMarkLineConfig()
@@ -1116,11 +968,8 @@
             document.getElementById('measurement-result').style.visibility = 'hidden';
 
             if (myChart) {
-                const extent = getXAxisExtent();
-                const minX = extent[0];
-                const maxX = extent[1];
                 myChart.setOption({
-                    xAxis: getXAxisOption(minX, maxX),
+                    xAxis: getXAxisOption(),
                     dataZoom: [{ type: 'inside', disabled: false }, { type: 'slider', disabled: false }],
                     series: [{ markLine: { symbol: ['none', 'none'], silent: true, lineStyle: { opacity: 0 }, data: [] } }]
                 });
@@ -1189,7 +1038,9 @@
                     startX = maxX - visibleWindow;
                 }
 
-                // use floating values for smooth zoom (no rounding)
+                startX = Math.floor(startX);
+                endX = Math.floor(endX);
+
                 applyDataZoomRange(startX, endX);
 
                 if (gridLinesVisible) updateGridLines();
@@ -1204,10 +1055,10 @@
         function resetZoom() {
             if (!myChart) return;
             myChart.setOption({
-                xAxis: getXAxisOption(0, ecgMaxX),
+                xAxis: getXAxisOption(),
                 dataZoom: [
-                    { type: 'inside', startValue: 0, endValue: ecgMaxX, realtime: true, throttle: 40, disabled: false },
-                    { type: 'slider', startValue: 0, endValue: ecgMaxX, disabled: false }
+                    { type: 'inside', start: 0, end: 100, disabled: false },
+                    { type: 'slider', start: 0, end: 100, disabled: false }
                 ]
             });
             if (gridLinesVisible) updateGridLines();
