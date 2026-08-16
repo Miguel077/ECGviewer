@@ -449,8 +449,8 @@
     <div class="main-container">
         <div class="card">
             <div class="upload-zone" onclick="document.getElementById('file-input').click()">
-                <p>Select a Polar JSON file or drag it here</p>
-                <input type="file" id="file-input" class="btn-input" accept=".json,.jsonl">
+                <p>Select a Polar JSON or ECG0 file (binary) or drag it here</p>
+                <input type="file" id="file-input" class="btn-input" accept=".json,.jsonl,.ecg,.bin,application/octet-stream">
                 <button class="btn" type="button">Load file</button>
             </div>
             <div id="status-message" class="status-box"></div>
@@ -680,25 +680,125 @@
             return { data: combinedDataPoints };
         }
 
+        function parseECG0(arrayBuffer) {
+            const dv = new DataView(arrayBuffer);
+            const len = dv.byteLength;
+            if (len < 36) throw new Error('File too small or invalid ECG0 file');
+
+            const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+            if (magic !== 'ECG0') throw new Error('Not an ECG0 file');
+
+            const version = dv.getUint8(4);
+            // Read 8-byte start timestamp (ms since 1970) - big-endian
+            let startTsMs = 0;
+            if (typeof dv.getBigUint64 === 'function') {
+                startTsMs = Number(dv.getBigUint64(5, false));
+            } else {
+                // Fallback for older engines: combine two Uint32
+                const high = dv.getUint32(5, false);
+                const low = dv.getUint32(9, false);
+                startTsMs = high * 4294967296 + low;
+            }
+
+            // Parse slot definitions starting at offset 32 (4-byte slots) until byte 0 is 0xAA
+            const slots = {};
+            let slotIndex = 0;
+            let pos = 32;
+            while (pos + 4 <= len) {
+                const b0 = dv.getUint8(pos);
+                if (b0 === 0xAA) break;
+                const b1 = dv.getUint8(pos + 1);
+                const rateHigh = dv.getUint8(pos + 2);
+                const rateLow = dv.getUint8(pos + 3);
+                const id = String.fromCharCode(b0, b1);
+                const rate = (rateHigh << 8) | rateLow;
+                slots[slotIndex] = { id, rate };
+                slotIndex += 1;
+                pos += 4;
+            }
+
+            // Now pos points at the first 0xAA sync byte (start of stream)
+            if (pos >= len || dv.getUint8(pos) !== 0xAA) throw new Error('No data stream found in ECG0 file');
+            // advance into stream
+            // We'll maintain a running currentTimeMs (ms since epoch)
+            let currentTimeMs = startTsMs;
+            pos += 1;
+
+            const out = [];
+
+            while (pos + 2 <= len) {
+                // If the next byte is a sync, consume it
+                if (dv.getUint8(pos) === 0xAA) { pos += 1; }
+
+                if (pos + 2 > len) break;
+                const header = dv.getUint16(pos, false); // big-endian
+                pos += 2;
+                const typeIndex = (header >> 12) & 0x0F;
+                const payloadLen = header & 0x0FFF;
+                if (pos + payloadLen > len) break;
+
+                const slot = slots[typeIndex] || { id: '??', rate: 0 };
+                const id = slot.id;
+
+                if (id === 'T0') {
+                    if (payloadLen >= 4) {
+                        const anchorMs = dv.getUint32(pos, false);
+                        currentTimeMs = startTsMs + anchorMs;
+                    }
+                } else if (id === 'E0') {
+                    const sampleCount = Math.floor(payloadLen / 2);
+                    const rate = slot.rate || 130;
+                    const dtMs = 1000 / rate;
+                    for (let i = 0; i < sampleCount; i++) {
+                        const v = dv.getInt16(pos + i * 2, false);
+                        const tsNs = currentTimeMs * 1e6 + (i * dtMs) * 1e6;
+                        out.push({ timeStamp: Math.round(tsNs), voltage: v });
+                    }
+                    // advance currentTime by sampleCount * dtMs
+                    currentTimeMs = currentTimeMs + sampleCount * dtMs;
+                }
+
+                pos += payloadLen;
+            }
+
+            if (out.length === 0) throw new Error('No ECG samples found in ECG0 file');
+            return { data: out };
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             attachMobileButtonHandling();
         });
 
-        document.getElementById('file-input').addEventListener('change', function(e) {
+        document.getElementById('file-input').addEventListener('change', async function(e) {
             const file = e.target.files[0];
             if (!file) return;
             originalFileName = file.name.replace(/\.[^/.]+$/, "");
             showStatus('<div class="spinner"></div>Connecting ECG segments...', 'loading');
-            const reader = new FileReader();
-            reader.onload = function(evt) {
+
+            try {
+                // Try to detect ECG0 magic from binary
+                const buf = await file.arrayBuffer();
+                const sig = String.fromCharCode(new Uint8Array(buf, 0, Math.min(4, buf.byteLength))[0] || 0,
+                    new Uint8Array(buf, 0, Math.min(4, buf.byteLength))[1] || 0,
+                    new Uint8Array(buf, 0, Math.min(4, buf.byteLength))[2] || 0,
+                    new Uint8Array(buf, 0, Math.min(4, buf.byteLength))[3] || 0);
+
                 setTimeout(() => {
                     try {
-                        const completeData = parseMultiBlockJSON(evt.target.result);
+                        let completeData = null;
+                        if (sig === 'ECG0') {
+                            completeData = parseECG0(buf);
+                        } else {
+                            // fallback: try to parse as text JSON blocks
+                            const text = new TextDecoder().decode(buf);
+                            completeData = parseMultiBlockJSON(text);
+                        }
                         renderECG(completeData);
                     } catch (err) { showStatus('<b>Error:</b> ' + err.message, 'error'); }
                 }, 50);
-            };
-            reader.readAsText(file);
+            } catch (err) {
+                showStatus('<b>Error:</b> ' + err.message, 'error');
+            }
         });
 
         function renderECG(jsonData) {
@@ -981,6 +1081,11 @@
                 alert("Please load a data file first.");
                 return;
             }
+
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+
             document.getElementById('print-modal').style.display = 'block';
             const extent = getXAxisExtent();
             if (extent && extent.length > 0) {

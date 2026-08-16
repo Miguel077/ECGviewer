@@ -1,6 +1,6 @@
 {
-  "name": "Polar EKG Viewer",
-  "short_name": "EKG Viewer",
+  "name": "Polar ECG Viewer",
+  "short_name": "ECG Viewer",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
