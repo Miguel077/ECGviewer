@@ -540,6 +540,10 @@
         let ecgMaxX = 0;
         let selectedZoomCenterX = null;
         let originalFileName = "ECG_Data";
+        // Touch/pinch state for custom two-finger zoom
+        let _touchPointers = new Map();
+        let _pinchState = null; // { startDist, startRange, centerDataX }
+        let _pinchRaf = null;
 
         function attachMobileButtonHandling() {
             document.querySelectorAll('.btn').forEach((button) => {
@@ -894,6 +898,103 @@
                 myChart.getZr().on('mouseup', function () { isDragging = null; });
                 myChart.getZr().on('globalout', function () { isDragging = null; });
             }
+
+            // enable custom touch pinch-to-zoom for two-finger gestures
+            function enableTouchPinchZoom() {
+                const wrapper = document.getElementById('chart-wrapper');
+                if (!wrapper) return;
+                // Let us handle touch gestures inside the chart
+                wrapper.style.touchAction = 'none';
+
+                function getDist(p1, p2) {
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    return Math.hypot(dx, dy);
+                }
+
+                function getCenter(p1, p2) {
+                    return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+                }
+
+                function updatePinch() {
+                    if (!_pinchState == null) return;
+                    if (!_pinchState) return;
+                    const entries = Array.from(_touchPointers.values());
+                    if (entries.length < 2) return;
+                    const p1 = entries[0], p2 = entries[1];
+                    const newDist = getDist(p1, p2);
+                    const delta = Math.abs(newDist - _pinchState.startDist);
+                    if (delta < 0.5) return; // ignore tiny jitter
+
+                    const scale = _pinchState.startDist / newDist;
+                    const newRange = Math.max(0.1, _pinchState.startRange * scale);
+
+                    const half = newRange / 2;
+                    let newStart = _pinchState.centerDataX - half;
+                    let newEnd = _pinchState.centerDataX + half;
+
+                    if (newStart < 0) { newStart = 0; newEnd = Math.min(newRange, ecgMaxX); }
+                    if (newEnd > ecgMaxX) { newEnd = ecgMaxX; newStart = Math.max(0, ecgMaxX - newRange); }
+
+                    applyDataZoomRange(newStart, newEnd);
+                    _pinchRaf = null;
+                }
+
+                wrapper.addEventListener('pointerdown', (ev) => {
+                    if (ev.pointerType !== 'touch') return;
+                    wrapper.setPointerCapture(ev.pointerId);
+                    _touchPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, id: ev.pointerId });
+
+                    if (_touchPointers.size === 2) {
+                        const entries = Array.from(_touchPointers.values());
+                        const p1 = entries[0], p2 = entries[1];
+                        const dist = getDist(p1, p2);
+
+                        // compute data-space center
+                        const rect = wrapper.getBoundingClientRect();
+                        const centerPx = getCenter(p1, p2);
+                        const pixel = [centerPx.x - rect.left, centerPx.y - rect.top];
+                        let centerDataX = null;
+                        try {
+                            const dataCoord = myChart.convertFromPixel('grid', pixel);
+                            centerDataX = dataCoord[0];
+                        } catch (e) {
+                            centerDataX = (getXAxisExtent()[0] + getXAxisExtent()[1]) / 2;
+                        }
+
+                        const extent = getXAxisExtent();
+                        const startRange = Math.max(0.001, extent[1] - extent[0]);
+
+                        _pinchState = { startDist: dist, startRange: startRange, centerDataX };
+                    }
+                });
+
+                wrapper.addEventListener('pointermove', (ev) => {
+                    if (ev.pointerType !== 'touch') return;
+                    if (!_touchPointers.has(ev.pointerId)) return;
+                    _touchPointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, id: ev.pointerId });
+
+                    if (_pinchState) {
+                        if (!_pinchRaf) _pinchRaf = requestAnimationFrame(updatePinch);
+                    }
+                }, { passive: true });
+
+                function endPointer(ev) {
+                    if (ev.pointerType !== 'touch') return;
+                    _touchPointers.delete(ev.pointerId);
+                    try { wrapper.releasePointerCapture(ev.pointerId); } catch (e) {}
+                    if (_touchPointers.size < 2) {
+                        _pinchState = null;
+                        if (_pinchRaf) { cancelAnimationFrame(_pinchRaf); _pinchRaf = null; }
+                    }
+                }
+
+                wrapper.addEventListener('pointerup', endPointer);
+                wrapper.addEventListener('pointercancel', endPointer);
+                wrapper.addEventListener('pointerleave', endPointer);
+            }
+
+            try { enableTouchPinchZoom(); } catch (e) { console.warn('enableTouchPinchZoom failed', e); }
 
             const option = {
                 animation: false,
