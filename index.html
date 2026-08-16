@@ -450,7 +450,7 @@
         <div class="card">
             <div class="upload-zone" onclick="document.getElementById('file-input').click()">
                 <p>Select a Polar JSON or ECG0 file (binary) or drag it here</p>
-                <input type="file" id="file-input" class="btn-input" accept=".json,.jsonl,.ecg,.bin,application/octet-stream">
+                <input type="file" id="file-input" class="btn-input" accept=".json,.jsonl,.ecg,.bin">
                 <button class="btn" type="button">Load file</button>
             </div>
             <div id="status-message" class="status-box"></div>
@@ -648,13 +648,13 @@
 
         function applyDataZoomRange(startX, endX) {
             if (!myChart) return;
-                xAxis: getXAxisOption(minX, maxX),
+            const safeStart = Math.min(startX, endX);
             const safeEnd = Math.max(startX, endX);
 
             myChart.setOption({
                 xAxis: getXAxisOption(safeStart, safeEnd),
                 dataZoom: [
-                    { type: 'inside', startValue: safeStart, endValue: safeEnd, realtime: true, throttle: 40, disabled: false },
+                    { type: 'inside', startValue: safeStart, endValue: safeEnd, realtime: true, throttle: 40, zoomOnMouseWheel: true, moveOnMouseMove: true, disabled: false },
                     { type: 'slider', startValue: safeStart, endValue: safeEnd, disabled: false }
                 ]
             });
@@ -776,12 +776,32 @@
             showStatus('<div class="spinner"></div>Connecting ECG segments...', 'loading');
 
             try {
-                // Try to detect ECG0 magic from binary
-                const buf = await file.arrayBuffer();
-                const sig = String.fromCharCode(new Uint8Array(buf, 0, Math.min(4, buf.byteLength))[0] || 0,
-                    new Uint8Array(buf, 0, Math.min(4, buf.byteLength))[1] || 0,
-                    new Uint8Array(buf, 0, Math.min(4, buf.byteLength))[2] || 0,
-                    new Uint8Array(buf, 0, Math.min(4, buf.byteLength))[3] || 0);
+                // Try to detect ECG0 magic from binary; fallback to FileReader for compatibility
+                let buf = null;
+                if (file.arrayBuffer) {
+                    try {
+                        buf = await file.arrayBuffer();
+                    } catch (e) {
+                        console.warn('arrayBuffer() failed, falling back to FileReader', e);
+                        buf = await new Promise((res, rej) => {
+                            const fr = new FileReader();
+                            fr.onerror = () => rej(fr.error);
+                            fr.onload = () => res(fr.result);
+                            fr.readAsArrayBuffer(file);
+                        });
+                    }
+                } else {
+                    buf = await new Promise((res, rej) => {
+                        const fr = new FileReader();
+                        fr.onerror = () => rej(fr.error);
+                        fr.onload = () => res(fr.result);
+                        fr.readAsArrayBuffer(file);
+                    });
+                }
+
+                // read first 4 bytes safely
+                const u8 = new Uint8Array(buf);
+                const sig = u8.length >= 4 ? String.fromCharCode(u8[0], u8[1], u8[2], u8[3]) : '';
 
                 setTimeout(() => {
                     try {
@@ -794,10 +814,14 @@
                             completeData = parseMultiBlockJSON(text);
                         }
                         renderECG(completeData);
-                    } catch (err) { showStatus('<b>Error:</b> ' + err.message, 'error'); }
+                    } catch (err) {
+                        console.error('Parsing error:', err);
+                        showStatus('<b>Error:</b> ' + err.message, 'error');
+                    }
                 }, 50);
             } catch (err) {
-                showStatus('<b>Error:</b> ' + err.message, 'error');
+                console.error('File read error:', err);
+                showStatus('<b>Error:</b> ' + (err && err.message ? err.message : String(err)), 'error');
             }
         });
 
@@ -882,7 +906,7 @@
                 xAxis: getXAxisOption(),
                 yAxis: { type: 'value', splitLine: { show: true, lineStyle: { color: '#e8e8e8' } } },
                 dataZoom: [
-                    { type: 'inside', startValue: 0, endValue: ecgMaxX, realtime: true, throttle: 40, disabled: false },
+                    { type: 'inside', startValue: 0, endValue: ecgMaxX, realtime: true, throttle: 40, zoomOnMouseWheel: true, moveOnMouseMove: true, disabled: false },
                     { type: 'slider', startValue: 0, endValue: ecgMaxX, disabled: false }
                 ],
                 series: [{
